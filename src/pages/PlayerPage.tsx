@@ -1,20 +1,21 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart, Download, ChevronLeft } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { PlayerController } from '../lib/player';
 import type { Track } from '../types';
 import { loadQueue, saveQueue, loadLikedTrackIds, saveLikedTrackIds } from '../lib/cache';
+import TopNav from '../components/TopNav';
 
 export default function PlayerPage() {
   const navigate = useNavigate();
+  void navigate;
   const controllerRef = useRef<PlayerController | null>(null);
   const { user } = useAuth();
 
   const localQueue = user ? loadQueue(user.id) : [];
   const localLiked = user ? loadLikedTrackIds(user.id) : new Set<string>();
 
-  // Initialize the controller once with the real audio element.
   useEffect(() => {
     const audio = document.getElementById('manatsume-audio') as HTMLAudioElement | null;
     if (!audio) return;
@@ -27,7 +28,6 @@ export default function PlayerPage() {
     };
   }, []);
 
-  // Wire the queue from route state or localStorage.
   useEffect(() => {
     const controller = controllerRef.current;
     if (!controller) return;
@@ -35,11 +35,7 @@ export default function PlayerPage() {
     let queue: Track[] = [];
     let preselectedId: string | null = null;
 
-    // Try route state first (coming from search/results).
-    const routerState = window.history.state as {
-      replay?: { V?: { track?: Track; queue?: Track[] } };
-    } | null;
-    const replay = routerState?.replay?.V;
+    const replay = (window.history.state as { replay?: { V?: { track?: Track; queue?: Track[] } } } | null)?.replay?.V;
     if (replay?.queue && replay.queue.length) {
       queue = replay.queue;
       if (replay.track) preselectedId = replay.track.id;
@@ -55,7 +51,6 @@ export default function PlayerPage() {
       if (idx >= 0) controller.setIndex(idx);
     }
 
-    // Persist the queue whenever it changes.
     const unsub = controller.subscribe((s) => {
       if (user && s.queue.length) {
         saveQueue(user.id, s.queue);
@@ -90,16 +85,16 @@ export default function PlayerPage() {
       else next.add(trackId);
       saveLikedTrackIds(user.id, next);
     },
-    [user],
+    [user, liked],
   );
 
   const downloadTrack = useCallback(
     (track: Track) => {
-      // Real audio would stream from the source URL. For now, offer what we can.
-      // If there is no direct stream URL, offer a placeholder download note.
       const src = track.url;
       if (!src) {
-        alert(`"${track.title}" by ${track.artist} is in the Jamendo catalog. The app streams it in the player; a direct download is not available unless the track provides one.`);
+        alert(
+          `"${track.title}" by ${track.artist} is in the Jamendo catalog. The app streams it in the player; a direct download is not available unless the track provides one.`,
+        );
         return;
       }
       fetch(src)
@@ -124,21 +119,10 @@ export default function PlayerPage() {
 
   const next = useCallback(() => controllerRef.current?.next(), []);
   const prev = useCallback(() => controllerRef.current?.prev(), []);
-  const seek = useCallback(
-    (t: number) => controllerRef.current?.seekTo(t),
-    [],
-  );
-  const setVolume = useCallback(
-    (v: number) => controllerRef.current?.setVolume(v),
-    [],
-  );
+  const seek = useCallback((t: number) => controllerRef.current?.seekTo(t), []);
+  const setVolume = useCallback((v: number) => controllerRef.current?.setVolume(v), []);
   const toggleShuffle = useCallback(() => controllerRef.current?.toggleShuffle(), []);
   const toggleRepeat = useCallback(() => controllerRef.current?.toggleRepeat(), []);
-
-  const back = useCallback(() => {
-    // Keep player alive but return to a list view.
-    navigate('/library', { replace: true });
-  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans selection:bg-[var(--color-accent)]/30 pb-24">
@@ -149,32 +133,7 @@ export default function PlayerPage() {
         src={current?.url ?? ''}
       />
 
-      <header className="sticky top-0 z-30 flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={back}
-            className="text-lg font-semibold tracking-tight flex items-center gap-1 hover:text-[var(--color-text)]"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Manatsume
-          </button>
-          <nav className="hidden md:flex items-center gap-4 text-sm text-[var(--color-muted)] ml-6">
-            <a href="/" className="hover:text-[var(--color-text)]">Home</a>
-            <a href="/search" className="hover:text-[var(--color-text)]">Search</a>
-            <a href="/library" className="hover:text-[var(--color-text)]">Library</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/library"
-            className="px-4 py-2 rounded-full text-sm border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]/50 transition flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Library
-          </a>
-        </div>
-      </header>
+      <TopNav />
 
       <div className="max-w-5xl mx-auto px-5 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -331,7 +290,7 @@ export default function PlayerPage() {
           <aside className="lg:col-span-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium">Queue</h3>
-              <span className="text-xs text-[var(--color-muted)]">{queue.length} tracks</span>
+              <span className="text-xs text-[var(--color-muted)]">{queue.length} track{queue.length === 1 ? '' : 's'}</span>
             </div>
             <div className="space-y-2">
               {queue.map((track, i) => (
@@ -347,7 +306,11 @@ export default function PlayerPage() {
                   }`}
                 >
                   <div className="h-10 w-10 rounded overflow-hidden bg-[var(--color-muted)]/30 shrink-0 flex items-center justify-center text-xs">
-                    <span className="opacity-60">♫</span>
+                    {track.artwork ? (
+                      <img src={track.artwork} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="opacity-60">♫</span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{track.title}</p>
@@ -359,7 +322,9 @@ export default function PlayerPage() {
                 </button>
               ))}
               {queue.length === 0 && (
-                <p className="text-xs text-[var(--color-muted)] py-4 text-center">Queue is empty. Search for music or go to your library.</p>
+                <p className="text-xs text-[var(--color-muted)] py-4 text-center">
+                  Queue is empty. Search for music or go to your library.
+                </p>
               )}
             </div>
 

@@ -1,74 +1,83 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Play, Search, Heart, Download, Headphones } from 'lucide-react';
+import { Search, Heart, Headphones, Download } from 'lucide-react';
+import TopNav from '../components/TopNav';
+
+const FEATURES = [
+  {
+    icon: Search,
+    title: 'Search free music',
+    body: 'Find songs and artists from the Jamendo catalog and your own library. Each track shows its artist credit and license.',
+  },
+  {
+    icon: Heart,
+    title: 'Your playlists',
+    body: 'Build playlists that live with your account and travel with you across devices.',
+  },
+  {
+    icon: Download,
+    title: 'Own your files',
+    body: 'Add your own music files for playback that stays in your control and on your device.',
+  },
+  {
+    icon: Headphones,
+    title: 'Player that stays with you',
+    body: 'A single player across the app, with queue, repeat, shuffle, and volume.',
+  },
+];
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans selection:bg-[var(--color-accent)]/30">
-      <header className="sticky top-0 z-30 flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <a href="/" className="text-lg font-semibold tracking-tight">Manatsume</a>
-          <nav className="hidden md:flex items-center gap-4 text-sm text-[var(--color-muted)] ml-6">
-            <Link to="/" className="hover:text-[var(--color-text)]">Home</Link>
-            <Link to="/search" className="hover:text-[var(--color-text)]">Search</Link>
-            <Link to="/library" className="hover:text-[var(--color-text)]">Library</Link>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/player"
-            className="px-4 py-2 rounded-full text-sm border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]/50 transition flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Player
-          </Link>
-        </div>
-      </header>
+      <TopNav />
 
-      <section className="max-w-5xl mx-auto px-5 py-12 md:py-20">
+      <section className="max-w-5xl mx-auto px-5 pt-14 md:pt-22 pb-12">
         <div className="max-w-2xl">
-          <div className="flex gap-3 mb-3">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 mb-4"
+          >
             <span className="text-xs uppercase tracking-widest text-[var(--color-muted)]">Free music player</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-accent)]/15 text-[var(--color-accent)]">Installable</span>
-          </div>
+          </motion.div>
+
           <motion.h1
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
             className="text-4xl md:text-5xl font-semibold leading-tight mb-4"
           >
             Your music,
             <br />
             <span className="text-[var(--color-accent)]">your night.</span>
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="text-sm text-[var(--color-muted)] mb-6 max-w-lg"
-          >
-            Catalog powered by{' '}
-            <a href="https://www.jamendo.com" target="_blank" rel="noopener" className="underline hover:text-[var(--color-text)]">Jamendo</a>{' '}
-            under a non-commercial API plan, plus music you add yourself. Each track credits its artist and shows its license.
-            In-app licensing details live in{' '}
-            <Link to="/licenses" className="underline">Licenses</Link>.
-          </motion.p>
-          <p className="text-xs text-[var(--color-muted)] mt-3">
-            SoundCloud and Free Music Archive are not available as catalog sources in this build; only the Jamendo catalog and your own legal music are supported.
-          </p>
 
           <motion.p
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-[var(--color-muted)] mb-8 max-w-lg"
+            transition={{ delay: 0.16 }}
+            className="text-sm text-[var(--color-muted)] mb-6 max-w-lg leading-relaxed"
           >
-            Manatsume is a free music player with playlists, search, and a calm dark theme you can install in Chrome and use like an app.
+            Catalog powered by{' '}
+            <a
+              href="https://www.jamendo.com"
+              target="_blank"
+              rel="noopener"
+              className="underline hover:text-[var(--color-text)]"
+            >
+              Jamendo
+            </a>{' '}
+            under a non-commercial API plan, plus music you add yourself. Each track credits its artist and
+            shows its license. In-app licensing details live in{' '}
+            <Link to="/licenses" className="underline">Licenses</Link>.
           </motion.p>
+
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex gap-3"
+            transition={{ delay: 0.24 }}
+            className="flex flex-wrap gap-3"
           >
             <Link
               to="/player"
@@ -84,6 +93,13 @@ export default function HomePage() {
               <Search className="w-4 h-4" />
               Search music
             </Link>
+            <Link
+              to="/library"
+              className="border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 rounded-full hover:border-[var(--color-accent)]/40 transition flex items-center gap-2"
+            >
+              <Heart className="w-4 h-4" />
+              Your library
+            </Link>
           </motion.div>
 
           <motion.div
@@ -92,8 +108,18 @@ export default function HomePage() {
             transition={{ delay: 0.3 }}
             className="flex flex-wrap gap-2 mt-8"
           >
-            {['Installable in Chrome', 'Night theme', 'Free music sources', 'Your playlists', 'Search', 'Local files'].map((f) => (
-              <span key={f} className="text-xs px-3 py-1.5 rounded-full bg-[var(--color-surface)]/60 text-[var(--color-muted)] border border-[var(--color-border)]">
+            {[
+              'Installable in Chrome',
+              'Night theme',
+              'Free music sources',
+              'Your playlists',
+              'Search',
+              'Your own files',
+            ].map((f) => (
+              <span
+                key={f}
+                className="text-xs px-3 py-1.5 rounded-full bg-[var(--color-surface)]/60 text-[var(--color-muted)] border border-[var(--color-border)]"
+              >
                 {f}
               </span>
             ))}
@@ -102,18 +128,38 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="relative mt-10 rounded-2xl overflow-hidden aspect-square max-w-md mx-auto border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+            transition={{ delay: 0.38 }}
+            className="relative mt-12 rounded-2xl overflow-hidden aspect-[4/3] max-w-lg mx-auto border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
           >
-            <img src="https://picsum.photos/seed/manatsume-hero/800/800" alt="mood artwork" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3 bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-xl px-4 py-3">
-              <div className="h-10 w-10 rounded overflow-hidden bg-[var(--color-muted)] flex items-center justify-center">
-                <span className="text-lg">♫</span>
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-accent)]/10 via-transparent to-transparent" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg
+                className="w-40 h-40 opacity-70"
+                viewBox="0 0 64 64"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                style={{ transform: 'scale(3.2)', transformOrigin: 'center' }}
+              >
+                <rect width="64" height="64" rx="14" fill="var(--color-bg)" />
+                <g fill="none" stroke="var(--color-fox-ear)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 26 L26 16 L30 26" />
+                  <path d="M46 26 L38 16 L34 26" />
+                </g>
+                <path d="M14 34 Q24 22 32 22 Q40 22 50 34" fill="none" stroke="var(--color-fox-fur)" strokeWidth="2.6" strokeLinecap="round" />
+                <circle cx="24" cy="32" r="1.6" fill="var(--color-fox-fur)" />
+                <circle cx="40" cy="32" r="1.6" fill="var(--color-fox-fur)" />
+                <path d="M27 36 L37 36" stroke="var(--color-fox-eye)" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M42 38 Q46 42 44 47" fill="none" stroke="var(--color-fox-ear)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3 bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-xl px-4 py-3 border border-[var(--color-border)]">
+              <div className="h-10 w-10 rounded overflow-hidden bg-[var(--color-muted)]/30 flex items-center justify-center text-lg">
+                ♫
               </div>
               <div>
-                <p className="text-sm font-medium">Midnight Signal</p>
-                <p className="text-xs text-[var(--color-muted)]">Long Summer Night</p>
+                <p className="text-sm font-medium">Long Summer Night</p>
+                <p className="text-xs text-[var(--color-muted)]">via Jamendo</p>
               </div>
             </div>
           </motion.div>
@@ -121,7 +167,7 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.5 }}
             className="mt-10 flex flex-wrap gap-4 text-xs text-[var(--color-muted)]"
           >
             <Link to="/privacy" className="hover:text-[var(--color-text)]">Privacy</Link>
@@ -143,17 +189,12 @@ export default function HomePage() {
             Why Manatsume
           </motion.h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              { icon: Search, title: 'Search across free music', body: 'Find songs and artists from free music sources and your own library.' },
-              { icon: Heart, title: 'Your playlists', body: 'Build playlists that live with your account and travel with you.' },
-              { icon: Download, title: 'Own your files', body: 'Add your own music files for playback that stays in your control.' },
-              { icon: Headphones, title: 'Player with you', body: 'A player that stays alive across the app, with queue, repeat, and shuffle.' },
-            ].map(({ icon: Icon, title, body }) => (
+            {FEATURES.map(({ icon: Icon, title, body }) => (
               <motion.div
                 key={title}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+                transition={{ delay: 0.08 }}
                 className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
               >
                 <div className="flex items-center gap-3 mb-3">
@@ -169,5 +210,13 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function Play({ className }: { className?: string }) {
+  return (
+    <svg className={className ?? ''} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
   );
 }

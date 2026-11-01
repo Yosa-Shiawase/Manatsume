@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Heart, Plus, Play, Loader2, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Heart, Plus, Loader2, ExternalLink, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { Track } from '../types';
 import { jamSearchUrl, JamSearchResult } from '../lib/jamendo';
+import TopNav from '../components/TopNav';
 
 const DEMO_TRACKS: Track[] = [
   {
@@ -16,6 +18,7 @@ const DEMO_TRACKS: Track[] = [
     artwork: 'https://picsum.photos/seed/t1/400/400',
     source: 'Jamendo',
     license: 'CC BY',
+    artistUrl: 'https://www.jamendo.com/artist/long-summer-night',
   },
   {
     id: 't2',
@@ -26,6 +29,7 @@ const DEMO_TRACKS: Track[] = [
     artwork: 'https://picsum.photos/seed/t2/400/400',
     source: 'Jamendo',
     license: 'CC BY',
+    artistUrl: 'https://www.jamendo.com/artist/ink-studio',
   },
   {
     id: 't3',
@@ -66,9 +70,8 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState<Set<string>>(new Set());
 
-  const isConfigured = Boolean(
-    typeof import.meta !== 'undefined' && import.meta.env?.VITE_JAMENDO_CLIENT_ID,
-  );
+  const isConfigured =
+    typeof import.meta !== 'undefined' && Boolean(import.meta.env?.VITE_JAMENDO_CLIENT_ID);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -129,60 +132,48 @@ export default function SearchPage() {
         setResults(DEMO_TRACKS);
       }
     }
-  }, [query, isConfigured, user, liked]);
+  }, [query, isConfigured, user]);
 
-  const toggleLike = useCallback(
-    (id: string) => {
-      setLiked((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-    },
-    [],
-  );
+  const toggleLike = useCallback((id: string) => {
+    setLiked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const playTrack = useCallback(
     (track: Track) => {
-      navigate('/player', {
-        state: { track, queue: results, replace: true },
-      });
+      navigate('/player', { state: { track, queue: results }, replace: true });
     },
     [navigate, results],
   );
 
-  const createPlaylist = useCallback((name: string) => {
-    if (!user) return;
-    const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
-    try {
-      const key = `playlist:${id}`;
-      localStorage.setItem(key, JSON.stringify([]));
-    } catch {
-      // ignore
-    }
-  }, [user]);
+  const addToPlaylist = useCallback(
+    (track: Track) => {
+      if (!user) return;
+      const name = window.prompt('Playlist name') || 'New playlist';
+      if (!name.trim()) return;
+      const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
+      try {
+        const key = `playlist:${id}`;
+        const existing = localStorage.getItem(key);
+        const tracks: Track[] = existing ? (JSON.parse(existing) as Track[]) : [];
+        if (!tracks.some((t) => t.id === track.id)) {
+          tracks.push(track);
+          localStorage.setItem(key, JSON.stringify(tracks));
+        }
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [user],
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans selection:bg-[var(--color-accent)]/30">
-      <header className="sticky top-0 z-30 flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <a href="/" className="text-lg font-semibold tracking-tight">Manatsume</a>
-          <nav className="hidden md:flex items-center gap-4 text-sm text-[var(--color-muted)] ml-6">
-            <a href="/" className="hover:text-[var(--color-text)]">Home</a>
-            <a href="/library" className="hover:text-[var(--color-text)]">Library</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/player"
-            className="px-4 py-2 rounded-full text-sm border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]/50 transition flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Player
-          </a>
-        </div>
-      </header>
+      <TopNav />
 
       <section className="max-w-5xl mx-auto px-5 py-12">
         <motion.div
@@ -207,7 +198,8 @@ export default function SearchPage() {
           </div>
 
           {!isConfigured && (
-            <p className="mt-3 text-xs text-[var(--color-muted)]">
+            <p className="mt-3 text-xs text-[var(--color-muted)] flex items-center gap-1.5">
+              <Settings className="w-3.5 h-3.5 shrink-0" />
               Jamendo client ID is not configured yet, so search shows sample tracks and filters them locally.
               Add{' '}
               <code className="bg-[var(--color-surface)] px-1 rounded text-[var(--color-accent)]">VITE_JAMENDO_CLIENT_ID</code>{' '}
@@ -237,10 +229,19 @@ export default function SearchPage() {
                   onClick={() => playTrack(track)}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="w-full text-left surface rounded-xl border border-transparent px-4 py-3 flex items-center gap-3 transition hover:border-[var(--color-accent)]/20"
+                  className="w-full text-left surface rounded-xl border border-transparent px-4 py-3 flex items-center gap-3 transition hover:border-[var(--color-accent)]/20 group"
                 >
-                  <div className="h-12 w-12 rounded overflow-hidden bg-[var(--color-muted)]/30 shrink-0 flex items-center justify-center text-xs">
-                    <span className="opacity-60">♫</span>
+                  <div className="h-14 w-14 rounded overflow-hidden bg-[var(--color-muted)]/30 shrink-0 flex items-center justify-center text-xs">
+                    {track.artwork ? (
+                      <img
+                        src={track.artwork}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="opacity-60">♫</span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{track.title}</p>
@@ -259,7 +260,7 @@ export default function SearchPage() {
                       {track.album ? ` · ${track.album}` : ''}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-[var(--color-muted)]">{track.source}</span>
+                      <span className="text-xs text-[var(--color-muted)]">{track.source ?? ''}</span>
                       {track.license && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-[var(--color-accent)]/15 text-[var(--color-accent)] capitalize">
                           {track.license}
@@ -267,7 +268,7 @@ export default function SearchPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -287,8 +288,7 @@ export default function SearchPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const name = window.prompt('Playlist name') || 'New playlist';
-                        createPlaylist(name);
+                        addToPlaylist(track);
                       }}
                       className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-surface)] text-[var(--color-muted)] hover:text-[var(--color-text)] transition flex items-center gap-1"
                     >
@@ -302,7 +302,16 @@ export default function SearchPage() {
           )}
 
           {query && results.length === 0 && (
-            <p className="mt-6 text-sm text-[var(--color-muted)]">No results for “{query}”</p>
+            <p className="mt-6 text-sm text-[var(--color-muted)]">No results for "{query}"</p>
+          )}
+
+          {query && (
+            <div className="mt-6 pt-4 border-t border-[var(--color-border)] flex items-center justify-between text-xs text-[var(--color-muted)]">
+              <span>{results.length} result{results.length === 1 ? '' : 's'}</span>
+              <Link to="/player" className="text-[var(--color-accent)] hover:underline">
+                Open player
+              </Link>
+            </div>
           )}
         </motion.div>
       </section>

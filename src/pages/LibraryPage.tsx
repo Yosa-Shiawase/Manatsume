@@ -1,15 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Heart, Library, Download, Trash2, Plus, Play } from 'lucide-react';
+import { Heart, Library, Download, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { Track } from '../types';
-import {
-  loadLikedTrackIds,
-  saveLikedTrackIds,
-  loadPlaylists,
-  savePlaylists,
-} from '../lib/cache';
+import { loadLikedTrackIds, saveLikedTrackIds, loadPlaylists, savePlaylists } from '../lib/cache';
+import TopNav from '../components/TopNav';
+
+const DEMO_TRACKS: Track[] = [
+  { id: 't1', title: 'Midnight Signal', artist: 'Long Summer Night', duration: 214, source: 'Jamendo' },
+  { id: 't2', title: 'Paper Fox', artist: 'Ink Studio', duration: 188, source: 'Jamendo' },
+  { id: 't3', title: 'Static Lullaby', artist: 'Echo Room', duration: 243, source: 'Jamendo' },
+  { id: 't4', title: 'Late Night Waves', artist: 'Tidal Haze', duration: 201, source: 'Jamendo' },
+  { id: 't5', title: 'Foxglove', artist: 'Ink Garden', duration: 176, source: 'Jamendo' },
+];
 
 export default function LibraryPage() {
   const navigate = useNavigate();
@@ -17,6 +21,12 @@ export default function LibraryPage() {
   const liked = user ? loadLikedTrackIds(user.id) : new Set<string>();
   const playlists = user ? loadPlaylists(user.id) : [];
   const [playlistsState, setPlaylistsState] = useState(playlists);
+
+  useEffect(() => {
+    if (user) {
+      setPlaylistsState(loadPlaylists(user.id));
+    }
+  }, [user]);
 
   const toggleLike = useCallback(
     (trackId: string) => {
@@ -63,46 +73,15 @@ export default function LibraryPage() {
     [user, playlistsState],
   );
 
-  const demoTracks: Track[] = [
-    { id: 't1', title: 'Midnight Signal', artist: 'Long Summer Night', duration: 214, source: 'Jamendo' },
-    { id: 't2', title: 'Paper Fox', artist: 'Ink Studio', duration: 188, source: 'Jamendo' },
-    { id: 't3', title: 'Static Lullaby', artist: 'Echo Room', duration: 243, source: 'Jamendo' },
-    { id: 't4', title: 'Late Night Waves', artist: 'Tidal Haze', duration: 201, source: 'Jamendo' },
-    { id: 't5', title: 'Foxglove', artist: 'Ink Garden', duration: 176, source: 'Jamendo' },
-  ];
-
   const back = useCallback(() => {
     navigate('/', { replace: true });
   }, [navigate]);
 
+  const likedTracks = DEMO_TRACKS.filter((t) => liked.has(t.id));
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans selection:bg-[var(--color-accent)]/30">
-      <header className="sticky top-0 z-30 flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={back}
-            className="text-lg font-semibold tracking-tight flex items-center gap-1 hover:text-[var(--color-text)]"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Manatsume
-          </button>
-          <nav className="hidden md:flex items-center gap-4 text-sm text-[var(--color-muted)] ml-6">
-            <a href="/" className="hover:text-[var(--color-text)]">Home</a>
-            <a href="/search" className="hover:text-[var(--color-text)]">Search</a>
-            <a href="/player" className="hover:text-[var(--color-text)]">Player</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/player"
-            className="px-4 py-2 rounded-full text-sm border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]/50 transition flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Player
-          </a>
-        </div>
-      </header>
+      <TopNav />
 
       <section className="max-w-3xl mx-auto px-5 py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -111,7 +90,7 @@ export default function LibraryPage() {
             onClick={back}
             className="flex items-center gap-1 text-sm text-[var(--color-muted)] hover:text-[var(--color-text)] mb-6"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
             Back
           </button>
           <h1 className="text-3xl font-semibold mb-2">Your library</h1>
@@ -129,12 +108,15 @@ export default function LibraryPage() {
               <Heart className="w-4 h-4 text-[var(--color-accent)]" />
               Liked tracks
             </h2>
-            {liked.size === 0 ? (
-              <p className="text-xs text-[var(--color-muted)]">No liked tracks.</p>
+            {likedTracks.length === 0 ? (
+              <p className="text-xs text-[var(--color-muted)]">No liked tracks yet.</p>
             ) : (
               <div className="space-y-2">
-                {demoTracks.filter((t) => liked.has(t.id)).map((track) => (
-                  <div key={track.id} className="flex items-center justify-between surface rounded-lg px-3 py-2 border border-[var(--color-border)] text-sm">
+                {likedTracks.map((track) => (
+                  <div
+                    key={track.id}
+                    className="flex items-center justify-between surface rounded-lg px-3 py-2 border border-[var(--color-border)] text-sm"
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{track.title}</p>
                       <p className="text-xs text-[var(--color-muted)] truncate">{track.artist}</p>
@@ -142,7 +124,7 @@ export default function LibraryPage() {
                     <button
                       type="button"
                       onClick={() => toggleLike(track.id)}
-                      className="text-xs text-[var(--color-muted)] hover:text-red-400 transition ml-2"
+                      className="text-xs text-[var(--color-muted)] hover:text-red-400 transition ml-2 shrink-0"
                     >
                       <Heart className="w-4 h-4 fill-red-400" />
                     </button>
@@ -180,10 +162,13 @@ export default function LibraryPage() {
             ) : (
               <div className="space-y-2">
                 {playlistsState.map((playlist) => (
-                  <div key={playlist.id} className="flex items-center justify-between surface rounded-lg px-3 py-2 border border-[var(--color-border)] text-sm">
+                  <div
+                    key={playlist.id}
+                    className="flex items-center justify-between surface rounded-lg px-3 py-2 border border-[var(--color-border)] text-sm"
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{playlist.name}</p>
-                      <p className="text-xs text-[var(--color-muted)] truncate">{playlist.tracks.length} tracks</p>
+                      <p className="text-xs text-[var(--color-muted)] truncate">{playlist.tracks.length} track{playlist.tracks.length === 1 ? '' : 's'}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -224,7 +209,7 @@ export default function LibraryPage() {
               <Download className="w-4 h-4 text-[var(--color-accent)]" />
               Your uploads
             </h2>
-            <p className="text-xs text-[var(--color-muted)] mb-3">Upload your own music files here.</p>
+            <p className="text-xs text-[var(--color-muted)] mb-3">Upload your own music files here. They stay on your device.</p>
             <label className="block surface rounded-lg border-2 border-dashed border-[var(--color-border)] p-4 text-center cursor-pointer hover:border-[var(--color-accent)]/50 transition">
               <input type="file" accept="audio/*" multiple className="hidden" />
               <span className="text-sm text-[var(--color-text)]">Add music files</span>

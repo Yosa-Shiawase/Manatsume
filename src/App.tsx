@@ -10,6 +10,7 @@ import AuthPage from './pages/AuthPage';
 import LicensesPage from './pages/LicensesPage';
 import PrivacyPage from './pages/PrivacyPage';
 import SourcesPage from './pages/SourcesPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/player" element={<ProtectedRoute><PlayerPage /></ProtectedRoute>} />
             <Route path="/library" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/licenses" element={<LicensesPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/sources" element={<SourcesPage />} />

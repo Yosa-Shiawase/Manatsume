@@ -1,0 +1,12 @@
+{
+  "name": "Manatsume",
+  "short_name": "Manatsume",
+  "description": "A free music player with playlists, search, and a calm dark theme.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0a0f",
+  "theme_color": "#0b0a0f",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
