@@ -2,6 +2,15 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Heart, Headphones, Download } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+
+import type { Variants } from 'framer-motion';
+
+function reducedVariants(v: Variants) {
+  return useReducedMotion()
+    ? { hidden: {}, visible: { opacity: 1 } }
+    : v;
+}
 
 const FEATURES = [
   {
@@ -34,8 +43,9 @@ export default function HomePage() {
       <section className="max-w-5xl mx-auto px-5 pt-14 md:pt-22 pb-12">
         <div className="max-w-2xl">
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } })}
             className="flex items-center gap-2 mb-4"
           >
             <span className="text-xs uppercase tracking-widest text-[var(--color-muted)]">Free music player</span>
@@ -43,8 +53,9 @@ export default function HomePage() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } })}
             transition={{ delay: 0.08 }}
             className="text-4xl md:text-5xl font-semibold leading-tight mb-4"
           >
@@ -54,8 +65,9 @@ export default function HomePage() {
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } })}
             transition={{ delay: 0.16 }}
             className="text-sm text-[var(--color-muted)] mb-6 max-w-lg leading-relaxed"
           >
@@ -74,8 +86,9 @@ export default function HomePage() {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } })}
             transition={{ delay: 0.24 }}
             className="flex flex-wrap gap-3"
           >
@@ -103,8 +116,9 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } })}
             transition={{ delay: 0.3 }}
             className="flex flex-wrap gap-2 mt-8"
           >
@@ -126,8 +140,9 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } })}
             transition={{ delay: 0.38 }}
             className="relative mt-12 rounded-2xl overflow-hidden aspect-[4/3] max-w-lg mx-auto border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
           >
@@ -165,8 +180,9 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0 }, visible: { opacity: 1 } })}
             transition={{ delay: 0.5 }}
             className="mt-10 flex flex-wrap gap-4 text-xs text-[var(--color-muted)]"
           >
@@ -182,21 +198,22 @@ export default function HomePage() {
       <section className="max-w-5xl mx-auto px-5 pb-24">
         <div className="max-w-2xl">
           <motion.h2
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial="hidden"
+            animate="visible"
+            variants={reducedVariants({ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } })}
             className="text-2xl font-semibold mb-6"
           >
             Why Manatsume
           </motion.h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {FEATURES.map(({ icon: Icon, title, body }) => (
-              <motion.div
-                key={title}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 }}
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
-              >
+          <div className="grid gap-4 sm:grid-cols-2">              {FEATURES.map(({ icon: Icon, title, body }) => (
+                <motion.div
+                  key={title}
+                  initial="hidden"
+                  animate="visible"
+                  variants={reducedVariants({ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } })}
+                  transition={{ delay: 0.08 }}
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+                >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-9 w-9 rounded-xl bg-[var(--color-accent)]/15 flex items-center justify-center text-[var(--color-accent)]">
                     <Icon className="w-5 h-5" />

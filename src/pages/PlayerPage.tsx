@@ -1,11 +1,25 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { PlayerController } from '../lib/player';
+import { PlayerController, type PlayerState } from '../lib/player';
 import type { Track } from '../types';
 import { loadQueue, saveQueue, loadLikedTrackIds, saveLikedTrackIds } from '../lib/cache';
 import TopNav from '../components/TopNav';
+
+const playerEmptyState: PlayerState = {
+  queue: [],
+  index: 0,
+  shuffle: false,
+  repeat: 'off',
+  current: null,
+  playing: false,
+  volume: 0.8,
+  crossfadeMs: 0,
+  currentTime: 0,
+  duration: 0,
+  buffered: 0,
+};
 
 export default function PlayerPage() {
   const navigate = useNavigate();
@@ -16,12 +30,18 @@ export default function PlayerPage() {
   const localQueue = user ? loadQueue(user.id) : [];
   const localLiked = user ? loadLikedTrackIds(user.id) : new Set<string>();
 
+  const [state, setState] = useState<PlayerState>(() => {
+    const c = controllerRef.current;
+    return c ? c.state : playerEmptyState;
+  });
+
   useEffect(() => {
     const audio = document.getElementById('manatsume-audio') as HTMLAudioElement | null;
     if (!audio) return;
     const controller = new PlayerController();
     controller.attach(audio);
     controllerRef.current = controller;
+    setState(controller.state);
 
     return () => {
       controller.destroy();
@@ -52,6 +72,7 @@ export default function PlayerPage() {
     }
 
     const unsub = controller.subscribe((s) => {
+      setState(s);
       if (user && s.queue.length) {
         saveQueue(user.id, s.queue);
       }
@@ -61,16 +82,16 @@ export default function PlayerPage() {
     };
   }, [user, localQueue]);
 
-  const playing = controllerRef.current?.state.playing ?? false;
-  const current = controllerRef.current?.state.current ?? null;
-  const queue = controllerRef.current?.state.queue ?? [];
-  const index = controllerRef.current?.state.index ?? 0;
-  const shuffle = controllerRef.current?.state.shuffle ?? false;
-  const repeat = controllerRef.current?.state.repeat ?? 'off';
-  const volume = controllerRef.current?.state.volume ?? 0.8;
-  const currentTime = controllerRef.current?.state.currentTime ?? 0;
-  const duration = controllerRef.current?.state.duration ?? 0;
-  const buffered = controllerRef.current?.state.buffered ?? 0;
+  const playing = state.playing;
+  const current = state.current;
+  const queue = state.queue;
+  const index = state.index;
+  const shuffle = state.shuffle;
+  const repeat = state.repeat;
+  const volume = state.volume;
+  const currentTime = state.currentTime;
+  const duration = state.duration;
+  const buffered = state.buffered;
   const liked = user ? loadLikedTrackIds(user.id) : localLiked;
 
   const togglePlay = useCallback(() => {
