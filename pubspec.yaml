@@ -1,0 +1,41 @@
+name: manatsume
+description: |
+  Manatsume — a personal music app built to study how a reverse-engineered
+  YouTube search and stream pipeline fits into a real mobile player.
+
+  The app uses `youtube_explode_dart` to search YouTube and obtain audio
+  stream URLs and metadata without an official YouTube API key. That is the
+  core thing this repo exists to study. It is intentionally honest about the
+  tradeoffs: extractor-based access depends on YouTube and on the extractor
+  staying current, so results and availability can change over time.
+
+  The app also supports offline files you add yourself, playlists, likes, and
+  a cohesive animation system where each action has its own motion signature.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  youtube_explode_dart: ^2.4.0
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.13
+  path_provider: ^2.1.2
+  cross_file: ^0.3.3+8
+  uuid: ^4.3.3
+  path: ^1.9.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
+
+flutter:
+  uses-material-design: true

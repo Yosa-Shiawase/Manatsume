@@ -1,0 +1,31 @@
+pluginManagement {
+    def flutterSdkPath = {
+        def properties = new Properties()
+        file('local.properties').withInputStream { istream ->
+            properties.load(istream)
+        }
+        def flutterSdkPath = properties.getProperty('flutter.sdk')
+        if (flutterSdkPath == null) {
+            throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in local.properties.")
+        }
+        return flutterSdkPath
+    }()
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'manatsume'
+include ':app'

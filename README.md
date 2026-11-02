@@ -1,85 +1,76 @@
 # Manatsume
 
-Manatsume is a free, installable music player with your own playlists, search across free music sources, and a calm night-themed experience. It is built as a downloadable PWA you can install in Chrome and use like an app.
+A mobile music app built to study how a reverse-engineered YouTube search
+and stream pipeline fits into a real player.
 
-## What Manatsume is
+## What this is
 
-- A music player with search, playlists, library, and a persistent player
-- Night-themed design with fox mascot and subtle motion
-- Free music sources plus your own files
-- Offline-capable PWA shell and local cover caching
+Manatsume is a Flutter app with two jobs:
 
-## Architecture
+1. Search and play music using `youtube_explode_dart`, which extracts search
+   results, metadata, and audio stream URLs from YouTube without an official
+   YouTube API key.
+2. Play your own local audio files, manage playlists, and keep a player that
+   stays with you across the app.
 
-- React + TypeScript + Vite
-- Tailwind CSS for styling
-- Framer Motion for animations
-- IndexedDB and Service Worker for local caching
-- Client-side player controller with queue, shuffle, repeat, and seek
+The interesting engineering layer is the reverse-engineering path: this repo
+is structured so you can open it and see how an app can obtain stream URLs and
+metadata through an extractor rather than through a public API.
 
-## Getting started
+## What it is not
 
-Install dependencies, then run the dev server.
+It is not an official YouTube app and it does not use a YouTube API key.
+Extractor-based access is inherently fragile: YouTube changes things, and the
+extractor can break or return different results over time. This repo treats
+that as a known limitation, not as a bug to pretend away.
 
-```sh
-npm install
-npm run dev
+It is also not a music catalog, licenses, or redistribution service. The app
+streams from URLs it obtains at runtime and does not re-host audio. If you use
+it with content you do not own or have permission to use, that is on you.
+
+## Stack
+
+- Flutter + Dart.
+- `youtube_explode_dart` for YouTube search and stream extraction.
+- `just_audio` for playback.
+- Local SQLite-like storage for playlists, likes, and library metadata via
+  `shared_preferences`-style local persistence and file-based local music.
+- Custom motion system built on Flutter's animation primitives, with separate
+  signatures for each major action.
+
+## Getting the APK
+
+You need the Flutter SDK installed locally. Then:
+
+```bash
+flutter pub get
+flutter build apk --release
 ```
 
-Open the preview URL in your browser. The app is installable when served over HTTPS or from localhost.
-
-## Project structure
+The release APK is produced at:
 
 ```
-src/
-  App.tsx
-  components/
-  hooks/
-  lib/
-  routes/
-  sections/
-  storage/
-  providers/
-  types.ts
-public/
-  manifest.json
+build/app/outputs/flutter-apk/app-release.apk
 ```
 
-## Music sourcing
+You can then upload that APK from the GitHub repo, or publish it from a
+GitHub Actions workflow that runs the same build.
 
-Manatsume plays music from free music sources and from your own files. Each track keeps the license and source that came with it. That means:
+If you want an APK shipped from GitHub automatically, add a GitHub Actions
+workflow that checks out the repo, sets up Flutter, runs `flutter build apk`,
+and uploads the artifact. The workflow is not included by default because this
+repo is meant to be studied and forked, not to assume a particular CI host.
 
-- Free source tracks show the artist, source, and license where available
-- Your own files stay on your device and are played locally
-- The app does not claim to own the music it plays
+## Honest limitations
 
-This is how Manatsume stays honest about music licensing.
+- YouTube search and stream availability depend on YouTube and on the extractor
+  package staying current.
+- Some tracks may not have a playable stream URL, or may be region/content
+  restricted.
+- Local files stay on the device; the app does not upload them anywhere.
 
 ## License
 
-The app code is released under the MIT License. Music in Manatsume is governed by the license of each track and by the terms of the source it came from.
-
-## Development notes
-
-- The app is designed to feel calm, premium, and animated without being noisy
-- Motion is used on route transitions, cards, and the player
-- The player is kept alive across navigation so playback continues as you browse
-- The theme can be switched between night, night-warm, and paper
-
-## Roadmap
-
-- Real backend and user accounts
-- Collaborative playlists and sync
-- More free music sources
-- Better offline and caching controls
-- More polish and accessibility work
-
-## Contributing
-
-Manatsume is a personal project. If you want to contribute, start by reading the code in `src/` and making small, focused changes.
-
-## Credits
-
-Made with care by Yosa-Shiawase.
-
-The fox mascot is inspired by the fox art in the 404startup project.
+The app code is MIT. Music sourcing is a separate matter: the app does not
+claim rights to any music it plays, and it streams from runtime URLs rather
+than bundling audio.
