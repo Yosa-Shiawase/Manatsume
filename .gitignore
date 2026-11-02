@@ -1,16 +1,64 @@
-**/build/
-.dart_tool/
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+idea/
+out/
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**.dart_tool/
 .packages
 .pub-cache/
 .pub/
-*.key
-*.pem
-*.jks
-*.apk
-*.aab
-*.log
-.idea/
+/build/
+
+# Coverage directory
+/coverage/
+
+# Temporary files
+*.tmp
+*.bak
+*.temp
+
+# Symlinks
+*.symlinks
+*.zip
+*.gz
+*.bz2
+
+# Exceptions to above rules
+!**/build/woothee/
+
+#android
+/android/.gradle/
+/android/local.properties
+/android/.idea/
+
+#flutter
+/ios/Flutter/.syft/
+ios/Flutter/Pods/
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.mm
+
+#flutter web
+flutter_root/ios/Flutter/.syft/
+
+# VS Code for Flutter
 .vscode/
-*.iml
-.DS_Store
-Thumbs.db
