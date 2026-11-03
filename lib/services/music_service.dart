@@ -4,8 +4,12 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../models/models.dart';
 
 class MusicService extends ChangeNotifier {
-  MusicService() {
+  MusicService._() {
     _youtube = YoutubeExplode();
+  }
+
+  factory MusicService() {
+    return MusicService._();
   }
 
   late final YoutubeExplode _youtube;
