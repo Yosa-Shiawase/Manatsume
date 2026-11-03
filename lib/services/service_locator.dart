@@ -1,7 +1,7 @@
-import 'services/music_service.dart';
-import 'services/playlist_service.dart';
-import 'services/like_service.dart';
-import 'services/library_service.dart';
+import 'music_service.dart';
+import 'playlist_service.dart';
+import 'like_service.dart';
+import 'library_service.dart';
 import 'settings_service.dart';
 
 class ServiceLocator {

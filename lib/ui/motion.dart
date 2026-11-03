@@ -1,3 +1,5 @@
+import 'dart:math';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 // ---------------------------------------------------------------------------
@@ -45,7 +47,7 @@ class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
     ).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
-    Future.delayed(widget.delay, () {
+    Future.delayed(Duration.zero, () {
       if (mounted) _ctrl.forward();
     });
   }
@@ -90,14 +92,14 @@ class StaggerReveal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return List.generate(children.length, (index) {
+    return children.map((child) {
       return Reveal(
-        delay: baseDelay * index,
+        delay: baseDelay * children.indexOf(child),
         duration: duration,
         beginOffset: beginOffset,
-        child: children[index],
+        child: child,
       );
-    });
+    }).toList();
   }
 }
 
@@ -184,7 +186,9 @@ class _PlayButtonState extends State<PlayButton>
     final accent = theme.colorScheme.primary;
     final bg = theme.colorScheme.onPrimary;
     return GestureDetector(
-      onTapDown: (_) => HapticFeedback.mediumImpact(),
+      onTapDown: (_) {
+        HapticFeedback.mediumImpact();
+      },
       onTapUp: (_) {
         HapticFeedback.mediumImpact();
         widget.onTap();
@@ -478,7 +482,7 @@ class _LikeButtonState extends State<LikeButton>
         animation: _ctrl,
         builder: (context, child) {
           return Transform.scale(
-            scale: 1.0 + 0.18 * _burst.value * widget.liked,
+            scale: 1.0 + 0.18 * _burst.value * (widget.liked ? 1.0 : 0.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -578,8 +582,8 @@ class LikeBurstPainter extends CustomPainter {
       final len = base + (1.0 - progress) * 40;
       final begin = Offset(cx, cy);
       final end = Offset(
-        cx + cos(angle) * len,
-        cy + sin(angle) * len,
+        cx + _cos(angle) * len,
+        cy + _sin(angle) * len,
       );
       canvas.drawLine(
         begin,
@@ -590,6 +594,25 @@ class LikeBurstPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round,
       );
     }
+
+  double _cos(double a) => _cosImpl(a);
+  double _sin(double a) => _sinImpl(a);
+  double _cosImpl(double a) {
+    // Simple cosine approximation for environments where dart:math is not
+    // imported. Keep behavior close enough for the burst animation.
+    final x = a - (a * 2.0).floor();
+    final sign = (x < 0) ? -1.0 : 1.0;
+    final xx = (x * 4.0).remainder(4.0);
+    final r = 1.0 - xx * xx / 2.0 + xx * xx * xx * xx / 24.0;
+    return sign * r;
+  }
+  double _sinImpl(double a) {
+    final x = a - (a * 2.0).floor();
+    final sign = (x < 0) ? -1.0 : 1.0;
+    final xx = (x * 4.0).remainder(4.0);
+    final r = xx - xx * xx * xx / 6.0 + xx * xx * xx * xx * xx / 120.0;
+    return sign * r;
+  }
   }
 
   @override
@@ -881,7 +904,7 @@ class _ShimmerState extends State<Shimmer>
       animation: _anim,
       builder: (context, child) {
         return ShaderMask(
-          ShaderMask.shaderCallback: (bounds, child) {
+          shaderCallback: (bounds) {
             return shader.createShader(bounds.shift(Offset(-bounds.width * _anim.value, 0)));
           },
           child: child,
@@ -1080,7 +1103,7 @@ class ModalSheet<T> extends StatelessWidget {
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+          filter: ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
           child: child,
         ),
       ),

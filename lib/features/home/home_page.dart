@@ -16,7 +16,7 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final text = theme.colorScheme.onBackground;
-    final muted = theme.colorScheme.onBackgroundVariant;
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
       body: SafeArea(
@@ -95,13 +95,13 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.6),
+        color: theme.colorScheme.primaryContainer.withOpacity(0.6),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         text.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onPrimaryContainer,
           letterSpacing: 1.0,
         ),
       ),
@@ -280,7 +280,7 @@ class _HomePageState extends State<HomePage> {
       text.toUpperCase(),
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
         letterSpacing: 1.5,
-        color: Theme.of(context).colorScheme.onBackgroundVariant,
+        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }

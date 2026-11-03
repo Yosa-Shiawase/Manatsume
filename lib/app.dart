@@ -11,6 +11,30 @@ import 'package:manatsume/features/player/player_page.dart';
 import 'package:manatsume/features/settings/settings_page.dart';
 import 'package:manatsume/features/about/about_page.dart';
 
+class ThemeModeController extends ChangeNotifier {
+  ThemeModeController({required this.service});
+  final SettingsService service;
+  ThemeMode _mode = ThemeMode.system;
+
+  ThemeMode get mode => _mode;
+
+  Future<void> init() async {
+    _mode = service.readTheme();
+    notifyListeners();
+  }
+
+  Future<void> set(ThemeMode value) async {
+    _mode = value;
+    await service.setTheme(_mode);
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}
+
 class ManatsumeApp extends StatefulWidget {
   const ManatsumeApp({super.key, required this.settings});
   final SettingsService settings;

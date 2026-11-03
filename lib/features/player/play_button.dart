@@ -81,7 +81,9 @@ class _PlayButtonState extends State<PlayButton>
     final bg = theme.colorScheme.onPrimary;
 
     return GestureDetector(
-      onTapDown: (_) => HapticFeedback.mediumImpact(),
+      onTapDown: (_) {
+        HapticFeedback.mediumImpact();
+      },
       onTapUp: (_) {
         HapticFeedback.mediumImpact();
         widget.onTap();

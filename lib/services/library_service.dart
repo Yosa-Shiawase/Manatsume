@@ -32,14 +32,14 @@ class LibraryService extends ChangeNotifier {
       if (!await _dir.exists()) {
         await _dir.create(recursive: true);
       }
-      _load();
+      await _load();
     } catch (e) {
       _dir = Directory.systemTemp;
-      _load();
+      await _load();
     }
   }
 
-  void _load() {
+  Future<void> _load() async {
     if (!_loaded) {
       try {
         await for (final entity in _dir.list()) {
@@ -107,8 +107,8 @@ class LibraryService extends ChangeNotifier {
       }
     } catch (_) {}
     try {
-      final thumb = File(track.thumbnailPath);
-      if (await thumb.exists()) {
+      final thumb = track.thumbnailPath != null ? File(track.thumbnailPath!) : null;
+      if (thumb != null && await thumb.exists()) {
         await thumb.delete();
       }
     } catch (_) {}

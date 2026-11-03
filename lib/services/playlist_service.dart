@@ -37,7 +37,7 @@ class PlaylistService extends ChangeNotifier {
     }
   }
 
-  void _load() {
+  Future<void> _load() async {
     if (!_loaded) {
       try {
         await for (final entity in _dir.list()) {

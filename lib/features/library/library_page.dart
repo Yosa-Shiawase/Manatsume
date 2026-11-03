@@ -53,7 +53,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     Text(
                       'Your own files',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onBackgroundVariant,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

@@ -4,6 +4,7 @@ import 'package:manatsume/models/models.dart';
 import 'package:manatsume/services/service_locator.dart';
 import 'package:manatsume/ui/motion.dart';
 import 'package:manatsume/features/player/play_button.dart';
+import 'package:manatsume/services/settings_service.dart';
 
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
@@ -136,7 +137,7 @@ class _PlayerPageState extends State<PlayerPage>
                     Text(
                       'Now playing',
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onBackgroundVariant,
+                        color: theme.colorScheme.onSurfaceVariant,
                         letterSpacing: 1.2,
                       ),
                     ),

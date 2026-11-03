@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:manatsume/models/models.dart';
 import 'package:manatsume/services/service_locator.dart';
@@ -54,7 +55,7 @@ class _SearchPageState extends State<SearchPage> {
                     Text(
                       'Search music through the extractor pipeline.',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onBackgroundVariant,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

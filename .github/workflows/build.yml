@@ -1,4 +1,5 @@
 name: Build APK
+
 on:
   push:
     branches: [main]
@@ -12,14 +13,20 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
       - name: Regenerate clean android scaffolding
         run: |
           rm -rf android
           flutter create . --platforms android --org com --project-name manatsume
+
       - name: Apply just_audio_background manifest
         run: cp ci/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
       - run: flutter pub get
-      - run: flutter build apk --release --split-per-abi
+
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+
       - uses: actions/upload-artifact@v4
         with:
           name: Manatsume-APK

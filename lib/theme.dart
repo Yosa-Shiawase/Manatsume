@@ -164,12 +164,11 @@ class ManatsumeTheme {
         ),
         iconTheme: IconThemeData(color: muted),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: border, width: 0.5),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -207,7 +206,7 @@ class ManatsumeTheme {
         ),
         behavior: SnackBarBehavior.floating,
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: surface,
         surfaceTintColor: accent,
         shape: RoundedRectangleBorder(
@@ -250,7 +249,7 @@ class ManatsumeTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
-          side: const BorderSide(color: accent, width: 1.25),
+          side: BorderSide(color: accent, width: 1.25),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

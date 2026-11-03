@@ -145,7 +145,7 @@ class AboutPage extends StatelessWidget {
                 delay: 330,
                 beginOffset: const Offset(0.0, 0.1),
                 child: _AboutCard(
-                  icon: Icons.license,
+                  icon: Icons.code,
                   title: 'License',
                   body: 'The app code is MIT. Music sourcing is a separate matter: the app streams '
                       'from runtime URLs and does not bundle audio. Use it responsibly.',

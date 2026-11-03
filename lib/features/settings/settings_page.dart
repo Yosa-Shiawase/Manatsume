@@ -34,7 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final text = theme.colorScheme.onBackground;
-    final muted = theme.colorScheme.onBackgroundVariant;
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
       body: SafeArea(
@@ -248,7 +248,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onBackgroundVariant;
+    final muted = theme.colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
@@ -320,7 +320,7 @@ class _SettingTile extends StatelessWidget {
                     Text(
                       subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: muted,
+                        color: theme.colorScheme.onSurfaceVariant,
                         height: 1.3,
                       ),
                     ),
@@ -352,7 +352,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onBackgroundVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
