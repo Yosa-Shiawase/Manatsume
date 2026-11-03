@@ -20,14 +20,12 @@ class MusicService extends ChangeNotifier {
 
   bool get searching => _searching;
   String? get error => _error;
-  bool get hasSearched => _lastSearch != null;
-
-  Future<void> search(String query) async {
+  bool get hasSearched => _lastSearch != null;  Future<List<Track>> search(String query) async {
     if (query.trim().isEmpty) {
       _error = null;
       _lastSearch = null;
       notifyListeners();
-      return;
+      return <Track>[];
     }
 
     _searching = true;
