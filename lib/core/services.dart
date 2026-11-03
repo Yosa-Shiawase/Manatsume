@@ -19,6 +19,7 @@ class ServiceLocator {
   }
 }
 
+class ServiceLocator {
   static final MusicService music = MusicService();
   static final PlaylistService playlists = PlaylistService();
   static final LikeService likes = LikeService();
