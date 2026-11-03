@@ -1,26 +1,38 @@
 import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models/models.dart';
 
+/// Streams music from YouTube using reverse-engineered endpoints
+/// (youtube_explode_dart — no official API key, no quota).
+/// Actual audio playback runs through just_audio (ExoPlayer on Android).
 class MusicService extends ChangeNotifier {
-  MusicService._() {
-    _youtube = YoutubeExplode();
-  }
-
   MusicService() {
     _youtube = YoutubeExplode();
+    _player = AudioPlayer();
+    _player.playerStateStream.listen((_) => _syncState());
   }
 
   late final YoutubeExplode _youtube;
+  late final AudioPlayer _player;
 
+  Track? _current;
   bool _searching = false;
+  bool _playing = false;
+  bool _buffering = false;
   String? _error;
   DateTime? _lastSearch;
 
   bool get searching => _searching;
+  bool get playing => _playing;
+  bool get buffering => _buffering;
   String? get error => _error;
-  bool get hasSearched => _lastSearch != null;  Future<List<Track>> search(String query) async {
+  bool get hasSearched => _lastSearch != null;
+  Track? get currentTrack => _current;
+  AudioPlayer get player => _player;
+
+  Future<List<Track>> search(String query) async {
     if (query.trim().isEmpty) {
       _error = null;
       _lastSearch = null;
@@ -34,35 +46,23 @@ class MusicService extends ChangeNotifier {
 
     try {
       final results = await _youtube.search
-          .get(query.trim(), options: const SearchOptions(maxResults: 40));
-      final List<Track> tracks = <Track>[];
-      for (final result in results) {
-        if (result.type != VideoType.video) continue;
-        final info = await _youtube.videos.get(result.id);
-        final stream = await _youtube.videos.streams.get(info.id);
-        final audio = stream?.audio;
-        String? audioUrl;
-        if (audio != null) {
-          audioUrl = audio.url.toString();
-        }
+          .search(query.trim(), filter: TypeFilters.video);
+      final tracks = <Track>[];
+      for (final video in results.take(40)) {
         tracks.add(Track(
-          id: 'yt_${info.id.value}',
-          title: info.title,
-          artist: info.author.displayName ?? info.author.name,
-          album: info.author.displayName ?? info.author.name,
-          duration: info.duration?.inSeconds ?? 0,
-          artwork:
-              info.thumbnails.getHigh?.url?.toString() ??
-              info.thumbnails.getMedium?.url?.toString() ??
-              'https://via.placeholder.com/120',
+          id: 'yt_${video.id.value}',
+          title: video.title,
+          artist: video.author,
+          album: video.author,
+          duration: video.duration?.inSeconds ?? 0,
+          artwork: video.thumbnails.highResUrl,
           source: 'YouTube',
-          license: 'https://creativecommons.org/licenses/by/4.0/',
-          url: audioUrl,
-          artistUrl: 'https://www.youtube.com/@${info.author.channelId?.value ?? "unknown"}',
+          license: 'https://www.youtube.com/t/terms',
+          url: null,
+          artistUrl: 'https://www.youtube.com/channel/${video.channelId.value}',
         ));
       }
 
-      tracks.sort((a, b) => b.duration.compareTo(a.duration));
       _lastSearch = DateTime.now();
       _error = null;
       notifyListeners();
@@ -81,35 +81,73 @@ class MusicService extends ChangeNotifier {
     }
   }
 
-  Future<AudioStreamInfo?> streamInfo(String videoId) async {
+  /// Resolves a direct audio URL for a YouTube-backed track.
+  Future<String?> resolveStreamUrl(String trackId) async {
+    final videoId = trackId.startsWith('yt_') ? trackId.substring(3) : trackId;
     try {
-      final info = await _youtube.videos.get(VideoId(videoId));
-      final stream = await _youtube.videos.streams.get(info.id);
-      final audio = stream?.audio;
-      if (audio == null) return null;
-      return AudioStreamInfo(
-        url: audio.url.toString(),
-        bitrate: audio.bitrate?.inBitsPerSecond ?? 0,
-        codec: audio.codec.name,
-      );
+      final manifest = await _youtube.videos.streamsClient
+          .getManifest(VideoId(videoId));
+      if (manifest.audioOnly.isEmpty) return null;
+      final stream = manifest.audioOnly.withHighestBitrate();
+      return stream.url.toString();
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> dispose() async {
-    await _youtube.close();
+  /// Plays a track: resolves its audio stream lazily, then starts playback.
+  Future<void> play(Track track) async {
+    _current = track;
+    _buffering = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final url = track.url ?? await resolveStreamUrl(track.id);
+      if (url == null) {
+        _error = 'Could not resolve an audio stream for this track.';
+        _buffering = false;
+        notifyListeners();
+        return;
+      }
+      await _player.setUrl(url);
+      await _player.play();
+    } catch (e) {
+      _error = 'Playback failed: ${e.toString()}';
+      _buffering = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> togglePlay() async {
+    if (_player.playing) {
+      await _player.pause();
+    } else {
+      await _player.play();
+    }
+  }
+
+  Future<void> stop() async {
+    await _player.stop();
+    _playing = false;
+    _buffering = false;
+    notifyListeners();
+  }
+
+  void _syncState() {
+    final playing = _player.playing;
+    final buffering = _player.processingState == ProcessingState.buffering ||
+        _player.processingState == ProcessingState.loading;
+    if (playing != _playing || buffering != _buffering) {
+      _playing = playing;
+      _buffering = buffering;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _youtube.close();
+    _player.dispose();
     super.dispose();
   }
-}
-
-class AudioStreamInfo {
-  const AudioStreamInfo({
-    required this.url,
-    required this.bitrate,
-    required this.codec,
-  });
-  final String url;
-  final int bitrate;
-  final String codec;
 }

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:manatsume/core/services.dart';
 import 'package:manatsume/models/models.dart';
 import 'package:manatsume/ui/motion.dart';
@@ -25,7 +26,7 @@ class _SearchPageState extends State<SearchPage> {
 
   void _runSearch() {
     HapticFeedback.lightImpact();
-    ServiceLocator().music.search(_queryController.text);
+    ServiceLocator.music.search(_queryController.text);
   }
 
   @override
@@ -81,7 +82,7 @@ class _SearchPageState extends State<SearchPage> {
                           ? IconButton(
                               icon: const Icon(Icons.close, size: 20),
                               onPressed: () {
-                                _queryController.clear();          ServiceLocator().music.search('');
+                                _queryController.clear();          ServiceLocator.music.search('');
           _focusNode.unfocus();
                               },
                             )
@@ -111,7 +112,7 @@ class _SearchPageState extends State<SearchPage> {
                       onPressed: _queryController.text.isEmpty
                           ? null
                           : _runSearch,
-                      icon:                      ServiceLocator().music.searching
+                      icon:                      ServiceLocator.music.searching
                           ? const SizedBox(
                               width: 18,
                               height: 18,
@@ -119,7 +120,7 @@ class _SearchPageState extends State<SearchPage> {
                             )
                           : const Icon(Icons.search, size: 18),
                       label: Text(
-                        ServiceLocator().music.searching ? 'Searching…' : 'Search',
+                        ServiceLocator.music.searching ? 'Searching…' : 'Search',
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -157,8 +158,7 @@ class _SearchPageState extends State<SearchPage> {
 class _StatusView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final ServiceLocator _locator = ServiceLocator();
-    final music = _locator.music;
+    final music = ServiceLocator.music;
     if (music.searching) {
       return const SizedBox(
         height: 20,
@@ -203,7 +203,7 @@ class _StatusView extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _locator.music.error!,
+                  music.error!,
                   style: TextStyle(
                     color: Colors.red.shade900,
                     fontSize: 14,
@@ -222,8 +222,7 @@ class _StatusView extends StatelessWidget {
 class _ResultsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final ServiceLocator _locator = ServiceLocator();
-    final music = _locator.music;
+    final music = ServiceLocator.music;
     final tracks = <Track>[];
 
     // For this educational build we expose a simple public query; in a real
@@ -368,7 +367,12 @@ class _SearchResultTileState extends State<_SearchResultTile> {
 
   void _togglePlay() {
     HapticFeedback.mediumImpact();
-    // Play action: opens the player with this track queued.
+    final music = ServiceLocator.music;
+    if (widget.current && music.currentTrack?.id == widget.track.id) {
+      music.togglePlay();
+    } else {
+      music.play(widget.track);
+    }
   }
 
   void _toggleLike() {

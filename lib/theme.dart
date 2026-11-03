@@ -306,9 +306,9 @@ class ManatsumeTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: accent, size: 24);
+            return IconThemeData(color: accent, size: 24);
           }
-          return const IconThemeData(color: muted, size: 24);
+          return IconThemeData(color: muted, size: 24);
         }),
       ),
       textSelectionTheme: TextSelectionThemeData(

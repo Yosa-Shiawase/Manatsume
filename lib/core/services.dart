@@ -12,7 +12,7 @@ class ServiceLocator {
   static final SettingsService settings = SettingsService();
 
   static Future<void> dispose() async {
-    await music.dispose();
+    music.dispose();
     playlists.dispose();
     likes.dispose();
     library.dispose();

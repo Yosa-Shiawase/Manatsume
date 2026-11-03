@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/models.dart';
 
 // ---------------------------------------------------------------------------
@@ -93,14 +94,17 @@ class StaggerReveal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return children.asMap().entries.map((entry) {
-      return Reveal(
-        delay: baseDelay * entry.key,
-        duration: duration,
-        beginOffset: beginOffset,
-        child: entry.value,
-      );
-    }).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children.asMap().entries.map((entry) {
+        return Reveal(
+          delay: baseDelay * entry.key,
+          duration: duration,
+          beginOffset: beginOffset,
+          child: entry.value,
+        );
+      }).toList(),
+    );
   }
 }
 
@@ -582,8 +586,8 @@ class LikeBurstPainter extends CustomPainter {
       final len = base + (1.0 - progress) * 40;
       final begin = Offset(cx, cy);
       final end = Offset(
-        cx + _cos(angle) * len,
-        cy + _sin(angle) * len,
+        cx + cos(angle) * len,
+        cy + sin(angle) * len,
       );
       canvas.drawLine(        begin,
         end,
@@ -688,7 +692,8 @@ class QueueItem extends StatelessWidget {
                             width: 48,
                             height: 48,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _artFallback(track),
+                            errorBuilder: (_, __, ___) =>
+                                _artFallback(track, theme),
                             loadingBuilder: (context, child, progress) {
                               if (progress == null) return child;
                               return SizedBox(
@@ -706,7 +711,7 @@ class QueueItem extends StatelessWidget {
                           ),
                         )
                       else
-                        _artFallback(track),
+                        _artFallback(track, theme),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -774,7 +779,7 @@ class QueueItem extends StatelessWidget {
     );
   }
 
-  Widget _artFallback(Track track) {
+  Widget _artFallback(Track track, ThemeData theme) {
     return Container(
       width: 48,
       height: 48,

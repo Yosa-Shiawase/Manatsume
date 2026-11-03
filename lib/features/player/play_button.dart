@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:manatsume/ui/motion.dart';
 
 class PlayButton extends StatefulWidget {
@@ -166,4 +167,70 @@ class _PlayButtonState extends State<PlayButton>
       ),
     );
   }
+}
+
+class _PlayIconPainter extends CustomPainter {
+  _PlayIconPainter({
+    required this.progress,
+    required this.playing,
+    required this.color,
+  });
+
+  final double progress;
+  final bool playing;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final center = size.center(Offset.zero);
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(progress * 0.6);
+    canvas.translate(-center.dx, -center.dy);
+
+    if (playing) {
+      final barWidth = size.width * 0.16;
+      final barHeight = size.height * 0.54;
+      final gap = size.width * 0.14;
+      final left = Rect.fromCenter(
+        center: center - Offset(gap / 2 + barWidth / 2, 0),
+        width: barWidth,
+        height: barHeight,
+      );
+      final right = Rect.fromCenter(
+        center: center + Offset(gap / 2 + barWidth / 2, 0),
+        width: barWidth,
+        height: barHeight,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(left, const Radius.circular(3)),
+        paint,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(right, const Radius.circular(3)),
+        paint,
+      );
+    } else {
+      final w = size.width * 0.5;
+      final h = size.height * 0.6;
+      final path = Path()
+        ..moveTo(center.dx - w / 2, center.dy - h / 2)
+        ..lineTo(center.dx + w / 2, center.dy)
+        ..lineTo(center.dx - w / 2, center.dy + h / 2)
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlayIconPainter old) =>
+      old.playing != playing ||
+      old.progress != progress ||
+      old.color != color;
 }

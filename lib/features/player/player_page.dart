@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:manatsume/models/models.dart';
-import '../services/service_locator.dart';
-import 'package:manatsume/ui/motion.dart';
+import '../../services/service_locator.dart';
+import 'package:manatsume/ui/motion.dart' hide PlayButton;
 import 'package:manatsume/features/player/play_button.dart';
 import 'package:manatsume/services/settings_service.dart';
 
@@ -787,7 +788,7 @@ class _QueueSection extends StatelessWidget {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final text = theme.colorScheme.onBackground;
-    final muted = theme.colorScheme.onBackgroundVariant;
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

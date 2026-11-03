@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:manatsume/theme.dart';
 import 'package:manatsume/services/settings_service.dart';
 import 'package:manatsume/services/playlist_service.dart';
@@ -297,7 +298,7 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
                     size: 24,
                     color: widget.selected
                         ? widget.accent
-                        : theme.of(context).colorScheme.onSurfaceVariant,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

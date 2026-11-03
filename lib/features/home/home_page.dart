@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manatsume/ui/motion.dart';
-import '../services/service_locator.dart';
+import '../../services/service_locator.dart';
 import 'package:manatsume/features/player/play_button.dart';
 
 class HomePage extends StatefulWidget {
@@ -92,6 +92,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _eyebrow(String text) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -112,7 +113,7 @@ class _HomePageState extends State<HomePage> {
     return Text(
       text,
       style: Theme.of(context).textTheme.displayMedium?.copyWith(
-        color: text,
+        color: base,
         height: 1.05,
       ),
     );
@@ -122,7 +123,7 @@ class _HomePageState extends State<HomePage> {
     return Text(
       text,
       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-        color: Theme.of(context).colorScheme.onBackgroundVariant,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         height: 1.5,
       ),
     );
@@ -276,6 +277,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _sectionTitle(String text) {
+    final theme = Theme.of(context);
     return Text(
       text.toUpperCase(),
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -344,7 +346,7 @@ class _HomePageState extends State<HomePage> {
         Text(
           'Study the code • Build the APK • Share it',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onBackgroundVariant,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         Text(
@@ -407,7 +409,7 @@ class _FeatureCard extends StatelessWidget {
             body,
             style: theme.textTheme.bodySmall?.copyWith(
               height: 1.4,
-              color: theme.colorScheme.onBackgroundVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],

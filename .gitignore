@@ -62,3 +62,4 @@ flutter_root/ios/Flutter/.syft/
 
 # VS Code for Flutter
 .vscode/
+.flutter-plugins-dependencies

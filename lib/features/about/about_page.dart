@@ -9,7 +9,7 @@ class AboutPage extends StatelessWidget {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final text = theme.colorScheme.onBackground;
-    final muted = theme.colorScheme.onBackgroundVariant;
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
       body: SafeArea(
@@ -212,7 +212,7 @@ class _AboutCard extends StatelessWidget {
                 Text(
                   body,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: muted,
+                    color: theme.colorScheme.onSurfaceVariant,
                     height: 1.4,
                   ),
                 ),
