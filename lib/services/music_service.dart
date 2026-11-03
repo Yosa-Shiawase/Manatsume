@@ -8,8 +8,8 @@ class MusicService extends ChangeNotifier {
     _youtube = YoutubeExplode();
   }
 
-  factory MusicService() {
-    return MusicService._();
+  MusicService() {
+    _youtube = YoutubeExplode();
   }
 
   late final YoutubeExplode _youtube;
