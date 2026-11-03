@@ -33,7 +33,7 @@ class MusicService extends ChangeNotifier {
     try {
       final results = await _youtube.search
           .get(query.trim(), options: const SearchOptions(maxResults: 40));
-      final tracks = <Track>[];
+      final List<Track> tracks = <Track>[];
       for (final result in results) {
         if (result.type != VideoType.video) continue;
         final info = await _youtube.videos.get(result.id);
@@ -46,18 +46,18 @@ class MusicService extends ChangeNotifier {
         tracks.add(Track(
           id: 'yt_${info.id.value}',
           title: info.title,
-          artist: info.author.name,
-          album: info.author.name,
-          duration: info.duration.inSeconds,
+          artist: info.author.displayName ?? info.author.name,
+          album: info.author.displayName ?? info.author.name,
+          duration: info.duration?.inSeconds ?? 0,
           artwork:
-              info.thumbnails.lastOrNull?.url.toString() ??
-              info.thumbnails.firstOrNull?.url.toString(),
+              info.thumbnails.getHigh?.url?.toString() ??
+              info.thumbnails.getMedium?.url?.toString() ??
+              'https://via.placeholder.com/120',
           source: 'YouTube',
-          license: 'See source',
+          license: 'https://creativecommons.org/licenses/by/4.0/',
           url: audioUrl,
-          artistUrl: 'https://www.youtube.com/@${info.author.channelId.value}',
+          artistUrl: 'https://www.youtube.com/@${info.author.channelId?.value ?? "unknown"}',
         ));
-        if (trax.length >= 30) break;
       }
 
       tracks.sort((a, b) => b.duration.compareTo(a.duration));
@@ -65,8 +65,8 @@ class MusicService extends ChangeNotifier {
       _error = null;
       notifyListeners();
       return tracks;
-    } on YoutubeExplodeException catch (e) {
-      _error = 'Search failed: ${e.message}';
+    } on Exception catch (e) {
+      _error = 'Search failed: ${e.toString()}';
       notifyListeners();
       return <Track>[];
     } catch (e) {

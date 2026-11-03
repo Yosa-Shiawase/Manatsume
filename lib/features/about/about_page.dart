@@ -32,12 +32,10 @@ class AboutPage extends StatelessWidget {
               Reveal(
                 delay: 60,
                 beginOffset: const Offset(0.0, 0.1),
-                child: Text(
-                  'A music app built to study a reverse-engineered search pipeline.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: muted,
-                    height: 1.4,
-                  ),
+                child: Text(                  'A music app built to study a reverse-engineered search pipeline.',              style: theme.textTheme.bodyMedium?.copyWith(
+                      color: muted,
+                      height: 1.4,
+                    ),
                 ),
               ),
               const SizedBox(height: 24),

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import '../models/models.dart';
 
 // ---------------------------------------------------------------------------
 // Reusable signatures
@@ -92,12 +93,12 @@ class StaggerReveal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return children.map((child) {
+    return children.asMap().entries.map((entry) {
       return Reveal(
-        delay: baseDelay * children.indexOf(child),
+        delay: baseDelay * entry.key,
         duration: duration,
         beginOffset: beginOffset,
-        child: child,
+        child: entry.value,
       );
     }).toList();
   }
@@ -476,8 +477,7 @@ class _LikeButtonState extends State<LikeButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    return GestureDetector(
-      onTap: _doToggle,
+    return GestureDetector(          onTap: _doToggle,
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, child) {
@@ -585,8 +585,7 @@ class LikeBurstPainter extends CustomPainter {
         cx + _cos(angle) * len,
         cy + _sin(angle) * len,
       );
-      canvas.drawLine(
-        begin,
+      canvas.drawLine(        begin,
         end,
         Paint()
           ..color = color.withOpacity((1.0 - progress) * 0.8)
@@ -594,26 +593,9 @@ class LikeBurstPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round,
       );
     }
+  }
 
-  double _cos(double a) => _cosImpl(a);
-  double _sin(double a) => _sinImpl(a);
-  double _cosImpl(double a) {
-    // Simple cosine approximation for environments where dart:math is not
-    // imported. Keep behavior close enough for the burst animation.
-    final x = a - (a * 2.0).floor();
-    final sign = (x < 0) ? -1.0 : 1.0;
-    final xx = (x * 4.0).remainder(4.0);
-    final r = 1.0 - xx * xx / 2.0 + xx * xx * xx * xx / 24.0;
-    return sign * r;
-  }
-  double _sinImpl(double a) {
-    final x = a - (a * 2.0).floor();
-    final sign = (x < 0) ? -1.0 : 1.0;
-    final xx = (x * 4.0).remainder(4.0);
-    final r = xx - xx * xx * xx / 6.0 + xx * xx * xx * xx * xx / 120.0;
-    return sign * r;
-  }
-  }
+
 
   @override
   bool shouldRepaint(covariant LikeBurstPainter other) =>

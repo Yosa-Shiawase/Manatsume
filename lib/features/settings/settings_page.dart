@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manatsume/services/settings_service.dart';
-import 'package:manatsume/services/service_locator.dart';
+import '../services/service_locator.dart';
 import 'package:manatsume/ui/motion.dart';
 
 class SettingsPage extends StatefulWidget {

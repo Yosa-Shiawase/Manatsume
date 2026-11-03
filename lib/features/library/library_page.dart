@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:manatsume/models/models.dart';
-import 'package:manatsume/services/service_locator.dart';
+import '../services/service_locator.dart';
 import 'package:manatsume/ui/motion.dart';
 import 'package:manatsume/features/player/play_button.dart';
 
