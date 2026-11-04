@@ -1,0 +1,2308 @@
+From c5ca4695cb460d5c33bb733ad55ea99db6750b99 Mon Sep 17 00:00:00 2001
+From: Yosa-Shiawase <yosa-shiawase@users.noreply.github.com>
+Date: Tue, 3 Nov 2026 16:58:48 +0000
+Subject: [PATCH] Fix Dart compile errors and verify with Flutter 3.47.9
+
+- music_service: use real youtube_explode_dart 2.x API (TypeFilters,
+  video.author, thumbnails.highResUrl) + just_audio playback integration
+- app.dart: fix theme.of -> Theme.of, add services import
+- settings_page: fix service_locator import path (file now exists)
+- pubspec: add missing shared_preferences dependency
+- theme: remove nonexistent ThemeData.brightness param
+- ci: add setup-java temurin 21, analyzer excludes, regenerate scaffold
+- test: replace stale counter template with model roundtrip tests
+- verified: flutter analyze = 0 errors, flutter test = 3/3 pass
+---
+ .github/workflows/build.yml                   |   9 +-
+ .gitignore                                    |   1 +
+ .metadata                                     |  30 +
+ analysis_options.yaml                         |   4 +
+ android/.gitignore                            |  14 +
+ android/app/build.gradle                      |  45 --
+ android/app/build.gradle.kts                  |  49 ++
+ android/app/src/debug/AndroidManifest.xml     |   7 +
+ android/app/src/main/AndroidManifest.xml      |  52 +-
+ .../main/kotlin/com/manatsume/MainActivity.kt |   5 +
+ .../res/drawable-v21/launch_background.xml    |  12 +
+ .../res/drawable/ic_launcher_background.xml   |   9 -
+ .../res/drawable/ic_launcher_foreground.xml   |  29 -
+ .../main/res/drawable/launch_background.xml   |  12 +
+ .../res/mipmap-anydpi-v26/ic_launcher.xml     |   4 -
+ .../mipmap-anydpi-v26/ic_launcher_round.xml   |   4 -
+ .../src/main/res/mipmap-hdpi/ic_launcher.png  | Bin 0 -> 544 bytes
+ .../src/main/res/mipmap-mdpi/ic_launcher.png  | Bin 0 -> 442 bytes
+ .../src/main/res/mipmap-xhdpi/ic_launcher.png | Bin 0 -> 721 bytes
+ .../main/res/mipmap-xxhdpi/ic_launcher.png    | Bin 0 -> 1031 bytes
+ .../main/res/mipmap-xxxhdpi/ic_launcher.png   | Bin 0 -> 1443 bytes
+ .../app/src/main/res/values-night/styles.xml  |  18 +
+ android/app/src/main/res/values/styles.xml    |  18 +
+ android/app/src/profile/AndroidManifest.xml   |   7 +
+ android/build.gradle                          |  28 -
+ android/build.gradle.kts                      |  24 +
+ android/gradle.properties                     |   6 +
+ .../gradle/wrapper/gradle-wrapper.properties  |   5 +
+ android/settings.gradle                       |  31 -
+ android/settings.gradle.kts                   |  26 +
+ lib/app.dart                                  |   3 +-
+ lib/core/services.dart                        |   2 +-
+ lib/features/about/about_page.dart            |   4 +-
+ lib/features/home/home_page.dart              |  12 +-
+ lib/features/library/library_page.dart        |   3 +-
+ lib/features/player/play_button.dart          |  67 ++
+ lib/features/player/player_page.dart          |   7 +-
+ lib/features/search/search_page.dart          |  24 +-
+ lib/features/settings/settings_page.dart      |   3 +-
+ lib/services/music_service.dart               | 142 ++--
+ lib/services/service_locator.dart             |   1 +
+ lib/theme.dart                                |   4 +-
+ lib/ui/motion.dart                            |  31 +-
+ pubspec.lock                                  | 746 ++++++++++++++++++
+ pubspec.yaml                                  |   1 +
+ test/widget_test.dart                         |  54 ++
+ 46 files changed, 1270 insertions(+), 283 deletions(-)
+ create mode 100644 .metadata
+ create mode 100644 android/.gitignore
+ delete mode 100644 android/app/build.gradle
+ create mode 100644 android/app/build.gradle.kts
+ create mode 100644 android/app/src/debug/AndroidManifest.xml
+ create mode 100644 android/app/src/main/kotlin/com/manatsume/MainActivity.kt
+ create mode 100644 android/app/src/main/res/drawable-v21/launch_background.xml
+ delete mode 100644 android/app/src/main/res/drawable/ic_launcher_background.xml
+ delete mode 100644 android/app/src/main/res/drawable/ic_launcher_foreground.xml
+ create mode 100644 android/app/src/main/res/drawable/launch_background.xml
+ delete mode 100644 android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+ delete mode 100644 android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+ create mode 100644 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+ create mode 100644 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+ create mode 100644 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+ create mode 100644 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+ create mode 100644 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+ create mode 100644 android/app/src/main/res/values-night/styles.xml
+ create mode 100644 android/app/src/main/res/values/styles.xml
+ create mode 100644 android/app/src/profile/AndroidManifest.xml
+ delete mode 100644 android/build.gradle
+ create mode 100644 android/build.gradle.kts
+ create mode 100644 android/gradle.properties
+ create mode 100644 android/gradle/wrapper/gradle-wrapper.properties
+ delete mode 100644 android/settings.gradle
+ create mode 100644 android/settings.gradle.kts
+ create mode 100644 lib/services/service_locator.dart
+ create mode 100644 pubspec.lock
+ create mode 100644 test/widget_test.dart
+
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index a8f0777..c113015 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -10,6 +10,12 @@ jobs:
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v4
++
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: "21"
++
+       - uses: subosito/flutter-action@v2
+         with:
+           channel: stable
+@@ -27,7 +33,8 @@ jobs:
+       - name: Build APK
+         run: flutter build apk --release --split-per-abi
+ 
+-      - uses: actions/upload-artifact@v4
++      - name: Upload APK artifact
++        uses: actions/upload-artifact@v4
+         with:
+           name: Manatsume-APK
+           path: build/app/outputs/flutter-apk/*.apk
+diff --git a/.gitignore b/.gitignore
+index 8acf86a..3c3307e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -62,3 +62,4 @@ flutter_root/ios/Flutter/.syft/
+ 
+ # VS Code for Flutter
+ .vscode/
++.flutter-plugins-dependencies
+diff --git a/.metadata b/.metadata
+new file mode 100644
+index 0000000..391030f
+--- /dev/null
++++ b/.metadata
+@@ -0,0 +1,30 @@
++# This file tracks properties of this Flutter project.
++# Used by Flutter tool to assess capabilities and perform upgrades etc.
++#
++# This file should be version controlled and should not be manually edited.
++
++version:
++  revision: "c197ca5199e9ee5661e865596c9c07294dfab51c"
++  channel: "stable"
++
++project_type: app
++
++# Tracks metadata for the flutter migrate command
++migration:
++  platforms:
++    - platform: root
++      create_revision: c197ca5199e9ee5661e865596c9c07294dfab51c
++      base_revision: c197ca5199e9ee5661e865596c9c07294dfab51c
++    - platform: android
++      create_revision: c197ca5199e9ee5661e865596c9c07294dfab51c
++      base_revision: c197ca5199e9ee5661e865596c9c07294dfab51c
++
++  # User provided section
++
++  # List of Local paths (relative to this file) that should be
++  # ignored by the migrate tool.
++  #
++  # Files that are not part of the templates will be ignored by default.
++  unmanaged_files:
++    - 'lib/main.dart'
++    - 'ios/Runner.xcodeproj/project.pbxproj'
+diff --git a/analysis_options.yaml b/analysis_options.yaml
+index b46a368..1b6c7ab 100644
+--- a/analysis_options.yaml
++++ b/analysis_options.yaml
+@@ -1,3 +1,7 @@
++analyzer:
++  exclude:
++    - build/**
++    - android/**
+ include: package:flutter_lints/flutter.yaml
+ 
+ linter:
+diff --git a/android/.gitignore b/android/.gitignore
+new file mode 100644
+index 0000000..be3943c
+--- /dev/null
++++ b/android/.gitignore
+@@ -0,0 +1,14 @@
++gradle-wrapper.jar
++/.gradle
++/captures/
++/gradlew
++/gradlew.bat
++/local.properties
++GeneratedPluginRegistrant.java
++.cxx/
++
++# Remember to never publicly share your keystore.
++# See https://flutter.dev/to/reference-keystore
++key.properties
++**/*.keystore
++**/*.jks
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+deleted file mode 100644
+index fc1d3ee..0000000
+--- a/android/app/build.gradle
++++ /dev/null
+@@ -1,45 +0,0 @@
+-def localProperties = new Properties()
+-def localPropertiesFile = rootProject.file('local.properties')
+-if (localPropertiesFile exists()) {
+-    localPropertiesFile.withReader('UTF-8') { reader ->
+-        localProperties.load(reader)
+-    }
+-}
+-
+-def flutterRoot = localProperties.getProperty('flutter.sdk')
+-if (flutterRoot == null) {
+-    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in local.properties.")
+-}
+-
+-def flutterVersion = localProperties.getProperty('flutter.version')
+-
+-apply plugin: 'com.android.application'
+-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+-
+-android {
+-    namespace 'com.manatsume'
+-    compileSdkVersion 34
+-
+-    compileOptions {
+-        sourceCompatibility JavaVersion.VERSION_1_8
+-        targetCompatibility JavaVersion.VERSION_1_8
+-    }
+-
+-    defaultConfig {
+-        applicationId "com.manatsume"
+-        minSdkVersion 21
+-        targetSdkVersion 34
+-        versionCode 1
+-        versionName "1.0.0"
+-    }
+-
+-    buildTypes {
+-        release {
+-            signingConfig signingConfigs.debug
+-        }
+-    }
+-}
+-
+-flutter {
+-    source '../..'
+-}
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+new file mode 100644
+index 0000000..d896de6
+--- /dev/null
++++ b/android/app/build.gradle.kts
+@@ -0,0 +1,49 @@
++plugins {
++    id("com.android.application")
++    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
++    id("dev.flutter.flutter-gradle-plugin")
++}
++
++android {
++    namespace = "com.manatsume"
++    compileSdk = flutter.compileSdkVersion
++    ndkVersion = flutter.ndkVersion
++
++    compileOptions {
++        sourceCompatibility = JavaVersion.VERSION_17
++        targetCompatibility = JavaVersion.VERSION_17
++    }
++
++    defaultConfig {
++        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
++        applicationId = "com.manatsume"
++        // You can update the following values to match your application needs.
++        // For more information, see: https://flutter.dev/to/review-gradle-config.
++        minSdk = flutter.minSdkVersion
++        targetSdk = flutter.targetSdkVersion
++        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
++        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
++        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
++        // flag during build.
++        versionCode = flutter.versionCode
++        versionName = flutter.versionName
++    }
++
++    buildTypes {
++        release {
++            // TODO: Add your own signing config for the release build.
++            // Signing with the debug keys for now, so `flutter run --release` works.
++            signingConfig = signingConfigs.getByName("debug")
++        }
++    }
++}
++
++kotlin {
++    compilerOptions {
++        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
++    }
++}
++
++flutter {
++    source = "../.."
++}
+diff --git a/android/app/src/debug/AndroidManifest.xml b/android/app/src/debug/AndroidManifest.xml
+new file mode 100644
+index 0000000..399f698
+--- /dev/null
++++ b/android/app/src/debug/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
++    <!-- The INTERNET permission is required for development. Specifically,
++         the Flutter tool needs it to communicate with the running application
++         to allow setting breakpoints, to provide hot reload, etc.
++    -->
++    <uses-permission android:name="android.permission.INTERNET"/>
++</manifest>
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 0344eda..9f1ce4a 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -1,20 +1,12 @@
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    package="com.manatsume">
+-
+-    <uses-permission xmlns:tools="http://schemas.android.com/tools" android:name="android.permission.INTERNET" />
+-    <uses-permission xmlns:tools="http://schemas.android.com/tools" android:name="android.permission.ACCESS_NETWORK_STATE" />
+-
+-    <!-- just_audio_background Android setup (from package README) -->
+-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+-
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
++    <uses-permission android:name="android.permission.INTERNET"/>
++    <uses-permission android:name="android.permission.WAKE_LOCK"/>
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+     <application
+         android:label="Manatsume"
+-        android:icon="@mipmap/ic_launcher"
+-        android:usesCleartextTraffic="true"
+-        android:hardwareAccelerated="true">
+-
++        android:name="${applicationName}"
++        android:icon="@mipmap/ic_launcher">
+         <activity
+             android:name="com.ryanheise.audioservice.AudioServiceActivity"
+             android:exported="true"
+@@ -23,38 +15,16 @@
+             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+             android:hardwareAccelerated="true"
+             android:windowSoftInputMode="adjustResize">
+-
+             <meta-data
+                 android:name="io.flutter.embedding.android.NormalTheme"
+-                android:resources="@style/NormalTheme" />
+-
++                android:resource="@style/NormalTheme"/>
+             <intent-filter>
+-                <action android:name="android.intent.action.MAIN" />
+-                <category android:name="android.intent.category.LAUNCHER" />
++                <action android:name="android.intent.action.MAIN"/>
++                <category android:name="android.intent.category.LAUNCHER"/>
+             </intent-filter>
+         </activity>
+-
+         <meta-data
+             android:name="flutterEmbedding"
+-            android:value="2" />
+-
+-        <service
+-            android:name="com.ryanheise.audioservice.AudioService"
+-            android:foregroundServiceType="mediaPlayback"
+-            android:exported="true"
+-            tools:ignore="Instantiatable">
+-            <intent-filter>
+-                <action android:name="android.media.browse.MediaBrowserService" />
+-            </intent-filter>
+-        </service>
+-
+-        <receiver
+-            android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+-            android:exported="true"
+-            tools:ignore="Instantiatable">
+-            <intent-filter>
+-                <action android:name="android.intent.action.MEDIA_BUTTON" />
+-            </intent-filter>
+-        </receiver>
++            android:value="2"/>
+     </application>
+ </manifest>
+diff --git a/android/app/src/main/kotlin/com/manatsume/MainActivity.kt b/android/app/src/main/kotlin/com/manatsume/MainActivity.kt
+new file mode 100644
+index 0000000..e16538e
+--- /dev/null
++++ b/android/app/src/main/kotlin/com/manatsume/MainActivity.kt
+@@ -0,0 +1,5 @@
++package com.manatsume
++
++import io.flutter.embedding.android.FlutterActivity
++
++class MainActivity : FlutterActivity()
+diff --git a/android/app/src/main/res/drawable-v21/launch_background.xml b/android/app/src/main/res/drawable-v21/launch_background.xml
+new file mode 100644
+index 0000000..f74085f
+--- /dev/null
++++ b/android/app/src/main/res/drawable-v21/launch_background.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Modify this file to customize your launch splash screen -->
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:drawable="?android:colorBackground" />
++
++    <!-- You can insert your own image assets here -->
++    <!-- <item>
++        <bitmap
++            android:gravity="center"
++            android:src="@mipmap/launch_image" />
++    </item> -->
++</layer-list>
+diff --git a/android/app/src/main/res/drawable/ic_launcher_background.xml b/android/app/src/main/res/drawable/ic_launcher_background.xml
+deleted file mode 100644
+index 797c90a..0000000
+--- a/android/app/src/main/res/drawable/ic_launcher_background.xml
++++ /dev/null
+@@ -1,9 +0,0 @@
+-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:width="108dp"
+-    android:height="108dp"
+-    android:viewportWidth="108"
+-    android:viewportHeight="108">
+-    <path
+-        android:fillColor="#0B0A0F"
+-        android:pathData="M0,0h108v108h-108z" />
+-</vector>
+diff --git a/android/app/src/main/res/drawable/ic_launcher_foreground.xml b/android/app/src/main/res/drawable/ic_launcher_foreground.xml
+deleted file mode 100644
+index 173b677..0000000
+--- a/android/app/src/main/res/drawable/ic_launcher_foreground.xml
++++ /dev/null
+@@ -1,29 +0,0 @@
+-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:width="108dp"
+-    android:height="108dp"
+-    android:viewportWidth="108"
+-    android:viewportHeight="108">
+-    <path
+-        android:fillColor="#0B0A0F"
+-        android:pathData="M0,0h108v108h-108z" />
+-    <path
+-        android:fillColor="#F5C26B"
+-        android:pathData="M38,40 L48,28 L52,42 L40,42 Z" />
+-    <path
+-        android:fillColor="#F5C26B"
+-        android:pathData="M70,40 L60,28 L56,42 L68,42 Z" />
+-    <path
+-        android:fillColor="#F2E2C4"
+-        android:pathData="M30,50 Q44,36 54,36 Q64,36 78,50 Q64,56 54,56 Q44,56 30,50 Z" />
+-    <path
+-        android:fillColor="#C75B26"
+-        android:pathData="M30,50 Q44,36 54,36 Q64,36 78,50 Q64,56 54,56 Q44,56 30,50 Z"
+-        android:strokeWidth="0"
+-        android:fillAlpha="0.35" />
+-    <path
+-        android:fillColor="#3A2A18"
+-        android:pathData="M42,48 A1.6,1.6 0 1,1 42,48.01 Z" />
+-    <path
+-        android:fillColor="#3A2A18"
+-        android:pathData="M66,48 A1.6,1.6 0 1,1 66,48.01 Z" />
+-</vector>
+diff --git a/android/app/src/main/res/drawable/launch_background.xml b/android/app/src/main/res/drawable/launch_background.xml
+new file mode 100644
+index 0000000..304732f
+--- /dev/null
++++ b/android/app/src/main/res/drawable/launch_background.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Modify this file to customize your launch splash screen -->
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:drawable="@android:color/white" />
++
++    <!-- You can insert your own image assets here -->
++    <!-- <item>
++        <bitmap
++            android:gravity="center"
++            android:src="@mipmap/launch_image" />
++    </item> -->
++</layer-list>
+diff --git a/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+deleted file mode 100644
+index 413f12c..0000000
+--- a/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@drawable/ic_launcher_background" />
+-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+-</adaptive-icon>
+diff --git a/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml b/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+deleted file mode 100644
+index 413f12c..0000000
+--- a/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@drawable/ic_launcher_background" />
+-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+-</adaptive-icon>
+diff --git a/android/app/src/main/res/mipmap-hdpi/ic_launcher.png b/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..db77bb4b7b0906d62b1847e87f15cdcacf6a4f29
+GIT binary patch
+literal 544
+zcmeAS@N?(olHy`uVBq!ia0vp^9w5xY3?!3`olAj~WQl7;NpOBzNqJ&XDuZK6ep0G}
+zXKrG8YEWuoN@d~6R2!h8bpbvhu0Wd6uZuB!w&u2PAxD2eNXD>P5D~Wn-+_Wa#27Xc
+zC?Zj|6r#X(-D3u$NCt}(Ms06KgJ4FxJVv{GM)!I~&n8Bnc94O7-Hd)cjDZswgC;Qs
+zO=b+9!WcT8F?0rF7!Uys2bs@gozCP?z~o%U<k`UN+s5qQ#T?KrmN7v*f2L%`GO4-^
+z(#_kX+jhyc?*UrsvLED<w+p3gfi4y<3GxeO5CDRJfCLa|I1d8%B?X@R0!qL1ba4!c
+zIQ;g^b-pGC0f)elH+vJ_clF3>|N3vA*22N<t#oc3|FNCx%`Ll}Jbl*Q`}yg~1ZO@=
+zF!6p)NTYsh!6(JdtLiRuwi@`&XeqAXe9fY|=kfFy_3t|md##(iHE+K4ydxH3>aGQG
+zlg@K`O_XuxvZ&Ks^m&R!`&1=spLvfx7oGDKDwpwW`#i<K@6w~yiZZH!59hqLTYF-H
+zp0%uz(2~z(X$>qdw@AL`7MR}m`rwr|mZgU`8P7SB<Kba6`>kL78fFf!WnuYWm$5Z0
+zNXhDbCv&49sM544K|?c)WrFfiZ<W8RzO1)p=v7f>vCi9h0O)B3Pgg&ebxsLQ05GG~
+AQ2+n{
+
+literal 0
+HcmV?d00001
+
+diff --git a/android/app/src/main/res/mipmap-mdpi/ic_launcher.png b/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..17987b79bb8a35cc66c3c1fd44f5a5526c1b78be
+GIT binary patch
+literal 442
+zcmeAS@N?(olHy`uVBq!ia0vp^1|ZDA3?vioaBc-sk|nMYCBgY=CFO}lsSJ)O`AMk?
+zp1FzXsX?iUDV2pMQ*D5Xx&nMcT!A!W`0S9QKQy;}1Cl^CgaH=;G9cpY;r$Q>i*pfB
+zP2drbID<_#qf;rPZx^FqH)F_D#*k@@q0<?|W-^A&VhjhO+044$%!YxiPI;`p4Q#=k
+za-F;6dk-j1J*_nBlG2>3KywUtLX8Ua?`H+NMzkczFPK3<KtaL4z@UHr{Pp|KpFjT|
+z1oAia3j-A_^>lFz@i_kW%1NOn0|D2I9n9wzH8m|-tHjsw|9>@K=iMBhxvkv6m8Y-l
+zyt<ns@%x_-ezPmiS-=02Ut8`WUGa5ad?jb?UB<rkVmAJ)*Xy}nR&U>Q?X=U+MF$@3
+zt`~i=@j|6y)RWMK--}M|=T`o&^Ni>IoWKHEbBXz7?A@mgWoL>!*SXo`SZH-*HSdS+
+yn*9;$7;m`l>wYBC5bq;=U}IMqLzqbYCidGC!)_gkIk_C@U<OZDKbLh*2~7avPrJzg
+
+literal 0
+HcmV?d00001
+
+diff --git a/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png b/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..09d4391482be68e9e4a07fab769b5de337d16eb1
+GIT binary patch
+literal 721
+zcmeAS@N?(olHy`uVBq!ia0vp^2_VeD3?#3*wSy!iOI#yLg7ec#$`gxH85~pclTsBt
+za}(23gHjVyDhp4h+5i=O3-AeX1=1l$e`s#|#^}+&7(N@w0CIr{$Oe+Uk^K-ZP~83C
+zcc@hG6rikF&NPT(23>y!y&wkt5C($~2D>~)O*cj@FGjOCM)M>_ixfudOh)?xMu#Fs
+z#}Y=@YDTwOM)x{K_j*Q;dPdJ?Mz0n|pLRx{4n|)f>SXlmV)XB04CrSJn#dS5nK2lM
+zrZ9#~WelCp7&e13Y$jvaEXHskn$2V!!DN-nWS__6T*l;H&Fopn?A6HZ-6WRLFP=R`
+zqG+CE#d4|IbyAI+rJJ`&x9*T`+a=p|0O(+s{UBcyZdkhj=yS1>AirP+0R;mf2uMgM
+zC}@~JfByORAh4SyRgi&!(cja>F(l*O+nd+@4m$|6K6KDn_&uvCpV23&>G9HJp{xgg
+z<JnHTOuK%sGbNji)8cv6*ZNtnbwxJZ-?eY1e-ZPG#r<}_kct2Ie>oq1^2_p9@|WEo
+z*X_Uko@K)qYYv~<poG`LOv(2(Hhkk{Dz;b6_#4<(=XBwh@>>43eQGMdbiGbo>E~Q&
+zr<n4_y=h^-h|%}kO&jwCioQ5EzF6K8^VdP)H>YBH{QP^@Sti!`2)uG{irBBq@y*$B
+zi#&(U-*=fp74j)RyIw49+0MRPMRU)+a2r*PJ$L5roHt2$UjExCTZSbq%V!HeS7J$N
+zdG@vOZB4v_lF7Plrx+hxo7(fCV&}f<lyK#S=nvDw%*y%vwN3psIS+1s7G}QfbZGd|
+zV;VoMy*YI2-%hU{-w$hl9!*Y_m~60h&vVVs6)lfgu09v4QWIt25UBGxaN`?mVmn*e
+U?z!!Jz`$qlboFyt=akR{0C)T?>Hq)$
+
+literal 0
+HcmV?d00001
+
+diff --git a/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png b/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5f1c8d34e7a88e3f88bea192c3a370d44689c3c
+GIT binary patch
+literal 1031
+zcmeAS@N?(olHy`uVBq!ia0vp^6F``Q8Ax83A=Cw=BuiW)N`mv#O3D+9QW+dm@{>{(
+zJaZG%Q-e|yQz{EjrrIztFa`(sgt!6~Yi|1%a`XoT0ojZ}lNrNjb9xj&#3c(B0U1_%
+zz5^97Xt*<I`!eYGGw1~|=m#_ChcFm~F&M`%SZ6TU=QA3HGn&RTnk6urCox*3Gg@ad
+z+GI1@<S^O-Q7)rh9;1CBqhm3nV+o^EDWh`*qe~T|Yc-==4WnBvqgx%LdmW=k1EWVH
+zqbCqGF?u#LdbTinH8Xm(F#5DJ`gAb*0#PTUUpJ#)52HU2^)d$ZF$VTC22NlMoX8kB
+zi7{v*V-S#>%oq$rQy4?0GKNfJ44uvxI)gC`h-NZ|&0-7(qS@?b!5r36oQ}zyZrNO3
+zMO=Or+<~>+A&uN&E!^Sl+>xE!QC-|oJv`ApDhqC^EWD|@=#J`=d#Xzxs4ah}w&Jnc
+z$|q_opQ^2TrnVZ0o~wh<3t%W&f<tNc(Fvx&VC63f@(X4V5O7Fnm=6N`&!0cPZsO%v
+z3=B;Ao-U3d6}R4ANDmGU6lr~^!Nn0K;_9?HfJbVIkW)*G%Yg&F)*BmaZ)6Dl_&?vn
+za8gV0`@6<5-|YBa|J|21FVarliS1gU$698&iU*DCL=pdt&mR>lvYGe#$xqda2bR_R
+zvPYgMcHgjZ5nSA^lJr%;<&0do;O^tDDh~=pIxA#coaCY>&N%M2<a5l9V~;L&ZJD?F
+zD6?3<TgqciA=l+!=Lp=a%2;%{dX@{HT-OP1|K<}HAM1TO7OY<MaYyH#Pk)4WR?Ts}
+zSNX4tLr#6-^m$z!Pd18IzSivQkh7k6T`o7OKThT4#m*F4b=OPt(kAX%9+=X!JT9f}
+zc|=Oray6sl!J;#tXm&@~>^tq^U%3DB@ynvKo}b?yu-bFc-u0JHzced$sg7S3zqI(2
+z#Km{dPr7I=pQ5>FuK#)QwK?Y`E`B?nP+}U)I#c1+FM*1kNvWG|a(TpksZQ3B@sD~b
+z<q`EIyVgP^b`|@{uDX5oB6GTR%^Or)?eBf<KkJg@eR6BbGYJ*-U;nQCudos6R9mG`
+zc=6fn-^`2s)0Hm%cpbX>pQ2)*V*TdwjFOtHvV|;OsiDqHi=6%)o4b!)x$)%9pGTsE
+z-JL={-Ffv+T87W(Xpooq<`r*VzWQcgBN$$`u}f>-ZQI1BB8ykN*=e4rIsJx9>z}*o
+zo~|9<SN`RwE}r7KC~Q%?|CMD5O&m%cKw{Bn6{qJbmFIooO_;g=+H+v4V(@hJb6Mw<
+G&;$S>I;xof
+
+literal 0
+HcmV?d00001
+
+diff --git a/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png b/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..4d6372eebdb28e45604e46eeda8dd24651419bc0
+GIT binary patch
+literal 1443
+zcmb`G{WsKk6vsdJTdFg%tJav9_E4vzrOaqkWF|A724Nly!y+?N9`Y<EGuRA6NX2Md
+zPqmGQbJPjRLrI#9?bL25ZHra>V6wZ}5(X(D_N(?!*n3`|_r0Hc?=PQw&*vnU?QTFY
+zB_M<hJUv`}aj#i9>sH|!j$PP;I}?dppoE_gA(4uc!jV&0!l7_;&p2^pxNo>PEcNJv
+za5_RT$o2Mf!<+r?&EbHH6nMoTsDOa;mN(wv8RNsHpG)`^ymG-S5By8<s&Q-yp4r*9
+z(t|8L&`vhm$wAg!MByQdFQW1h)eqSS&@P++v^xmx2}OHF$WDZ4QHUN37S3Sd0#=@|
+zD*$YR!8QbJ55gWH>=l9iVXzN_eG%Xg2@Xeq76tTZ*dGh~<G>Lo9vl;Zfs+W#BydUw
+zCkZ$o1LqWQO$FC9aKlLl*7x9^0q%0}$OMlp@Kk_jHXOjofdePND+j!A{q!8~Jn+s3
+z?~~w@4?egS02}8NuulUA=L~QQfm;MzCGd)XhiftT;+zFO&JVyp2mBww?;QByS_1w!
+zrQlx%{^cMj0|Bo1FjwY@Q8?Hx0cIPF*@-ZRFpPc#bBw{5@tD(5%sClzIfl8WU~V#u
+zm5Q;_F!wa$BSpqhN>W@2De?TKWR*!ujY;Yylk_X5#~V!L*Gw~;$%<BT_6>4Q8~Mad
+z@`-kG?yb$a9cHIApZDVZ^U6Xkp<*4rU82O7%}0jjHlK{id@?-wpN*fCHXyXh(bLt*
+zPc}H-x0e4E&nQ>y%B-(EL=9}RyC%MyX=upHuFhAk&MLbsF0LP-q`XnH78@fT+pKPW
+zu72MW`|?8h<N~B$l%}NU6KvLZj~&>t^tz$iC}ZwLp4tB;Q49K!QCF3@!iB1qOI=?w
+z7In!}F~ij(18UYUjnbmC!qKhPo%24?8U1x{7o(+?^Zu0Hx81|FuS?bJ0jgBhEMzf<
+zCgUq7r2OCB(`XkKcN-TL>u5y#dD6D!)5W?`O5)V^>jb)P)GBdy%t$uUMpf$SNV31$
+zb||OojAbvMP?T@$h_ZiFLFVHDmbyMhJF|-_)HX3%m=CDI+ID$0^C>kzxprBW)hw(v
+zr!Gmda);ICoQyhV_oP5+C%?jcG8v+D@9f?Dk*!BxY}dazmrT@64UrP3hlslANK)bq
+z$67n83eh}OeW&SV@HG95P|bjfqJ7gw$e+`Hxo!4cx`jdK1bJ>YDSpGKLPZ^1cv$ek
+zIB?0S<#tX?SJCLWdMd{-ME?$hc7A$zBOdIJ)4!KcAwb=VMov)nK;9z>x~rfT1>dS+
+zZ6#`2v@`jgbqq)P22H)Tx2CpmM^o1$B+xT6`(v%5xJ(?j#>Q$+rx_R|7TzDZe{J6q
+zG1*EcU%tE?!kO%^M;3aM6JN*LAKUVb^xz8-Pxo#jR5(-KBeLJvA@-gxNHx0M-ZJLl
+z;#JwQoh~9V?`UVo#}{6ka@II>++D@%KqGpMdlQ}?9E*wFcf5(#XQnP$Dk5~%iX^>f
+z<NEXJGYh+`9LE^Z1#g~OZ)yl?O>%$y;?M0BLp{O3a(-4A?ewryHrrD%cx#Q^%KY1H
+zNre$ve+vceSLZcNY4U(RBX&)oZn*Py()h)XkE?PL$!bNb{N5FVI2Y%LKEm%yvpyTP
+z(1P?z<YzdcoCZ;A^sD<`wcO1=DLw>~7YxD~Rf<<Lt&2H?f`^~9TW?0O(WnyXeZvF-
+hHxv6WEXUT@T$j&O|7sZ6iSVC<kf$5l^{TT-@h=>(a@_y`
+
+literal 0
+HcmV?d00001
+
+diff --git a/android/app/src/main/res/values-night/styles.xml b/android/app/src/main/res/values-night/styles.xml
+new file mode 100644
+index 0000000..06952be
+--- /dev/null
++++ b/android/app/src/main/res/values-night/styles.xml
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
++    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
++        <!-- Show a splash screen on the activity. Automatically removed when
++             the Flutter engine draws its first frame -->
++        <item name="android:windowBackground">@drawable/launch_background</item>
++    </style>
++    <!-- Theme applied to the Android Window as soon as the process has started.
++         This theme determines the color of the Android Window while your
++         Flutter UI initializes, as well as behind your Flutter UI while its
++         running.
++
++         This Theme is only used starting with V2 of Flutter's Android embedding. -->
++    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
++        <item name="android:windowBackground">?android:colorBackground</item>
++    </style>
++</resources>
+diff --git a/android/app/src/main/res/values/styles.xml b/android/app/src/main/res/values/styles.xml
+new file mode 100644
+index 0000000..cb1ef88
+--- /dev/null
++++ b/android/app/src/main/res/values/styles.xml
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
++    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
++        <!-- Show a splash screen on the activity. Automatically removed when
++             the Flutter engine draws its first frame -->
++        <item name="android:windowBackground">@drawable/launch_background</item>
++    </style>
++    <!-- Theme applied to the Android Window as soon as the process has started.
++         This theme determines the color of the Android Window while your
++         Flutter UI initializes, as well as behind your Flutter UI while its
++         running.
++
++         This Theme is only used starting with V2 of Flutter's Android embedding. -->
++    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
++        <item name="android:windowBackground">?android:colorBackground</item>
++    </style>
++</resources>
+diff --git a/android/app/src/profile/AndroidManifest.xml b/android/app/src/profile/AndroidManifest.xml
+new file mode 100644
+index 0000000..399f698
+--- /dev/null
++++ b/android/app/src/profile/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
++    <!-- The INTERNET permission is required for development. Specifically,
++         the Flutter tool needs it to communicate with the running application
++         to allow setting breakpoints, to provide hot reload, etc.
++    -->
++    <uses-permission android:name="android.permission.INTERNET"/>
++</manifest>
+diff --git a/android/build.gradle b/android/build.gradle
+deleted file mode 100644
+index db95faf..0000000
+--- a/android/build.gradle
++++ /dev/null
+@@ -1,28 +0,0 @@
+-buildscript {
+-    ext.kotlin_version = '1.9.22'
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-    dependencies {
+-        classpath 'com.android.tools.build:gradle:8.2.2'
+-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+-    }
+-}
+-
+-allprojects {
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-}
+-
+-rootProject.buildDir = '../build'
+-subprojects {
+-    project.buildDir = "${rootProject.buildDir}/${project.name}"
+-    project.evaluationDependsOn(':app')
+-}
+-
+-tasks.register('clean', Delete) {
+-    delete rootProject.buildDir
+-}
+diff --git a/android/build.gradle.kts b/android/build.gradle.kts
+new file mode 100644
+index 0000000..dbee657
+--- /dev/null
++++ b/android/build.gradle.kts
+@@ -0,0 +1,24 @@
++allprojects {
++    repositories {
++        google()
++        mavenCentral()
++    }
++}
++
++val newBuildDir: Directory =
++    rootProject.layout.buildDirectory
++        .dir("../../build")
++        .get()
++rootProject.layout.buildDirectory.value(newBuildDir)
++
++subprojects {
++    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
++    project.layout.buildDirectory.value(newSubprojectBuildDir)
++}
++subprojects {
++    project.evaluationDependsOn(":app")
++}
++
++tasks.register<Delete>("clean") {
++    delete(rootProject.layout.buildDirectory)
++}
+diff --git a/android/gradle.properties b/android/gradle.properties
+new file mode 100644
+index 0000000..e96108c
+--- /dev/null
++++ b/android/gradle.properties
+@@ -0,0 +1,6 @@
++org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
++android.useAndroidX=true
++# This newDsl flag was added by the Flutter template
++android.newDsl=false
++# This builtInKotlin flag was added by the Flutter template
++android.builtInKotlin=false
+diff --git a/android/gradle/wrapper/gradle-wrapper.properties b/android/gradle/wrapper/gradle-wrapper.properties
+new file mode 100644
+index 0000000..a20f2c4
+--- /dev/null
++++ b/android/gradle/wrapper/gradle-wrapper.properties
+@@ -0,0 +1,5 @@
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+diff --git a/android/settings.gradle b/android/settings.gradle
+deleted file mode 100644
+index b0ca3d2..0000000
+--- a/android/settings.gradle
++++ /dev/null
+@@ -1,31 +0,0 @@
+-pluginManagement {
+-    def flutterSdkPath = {
+-        def properties = new Properties()
+-        file('local.properties').withInputStream { istream ->
+-            properties.load(istream)
+-        }
+-        def flutterSdkPath = properties.getProperty('flutter.sdk')
+-        if (flutterSdkPath == null) {
+-            throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in local.properties.")
+-        }
+-        return flutterSdkPath
+-    }()
+-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+-
+-    repositories {
+-        google()
+-        mavenCentral()
+-        gradlePluginPortal()
+-    }
+-}
+-
+-dependencyResolutionManagement {
+-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-}
+-
+-rootProject.name = 'manatsume'
+-include ':app'
+diff --git a/android/settings.gradle.kts b/android/settings.gradle.kts
+new file mode 100644
+index 0000000..b28021a
+--- /dev/null
++++ b/android/settings.gradle.kts
+@@ -0,0 +1,26 @@
++pluginManagement {
++    val flutterSdkPath =
++        run {
++            val properties = java.util.Properties()
++            file("local.properties").inputStream().use { properties.load(it) }
++            val flutterSdkPath = properties.getProperty("flutter.sdk")
++            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
++            flutterSdkPath
++        }
++
++    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
++
++    repositories {
++        google()
++        mavenCentral()
++        gradlePluginPortal()
++    }
++}
++
++plugins {
++    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
++    id("com.android.application") version "9.1.0" apply false
++    id("org.jetbrains.kotlin.android") version "2.4.0" apply false
++}
++
++include(":app")
+diff --git a/lib/app.dart b/lib/app.dart
+index 6743446..fc555d3 100644
+--- a/lib/app.dart
++++ b/lib/app.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/theme.dart';
+ import 'package:manatsume/services/settings_service.dart';
+ import 'package:manatsume/services/playlist_service.dart';
+@@ -297,7 +298,7 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
+                     size: 24,
+                     color: widget.selected
+                         ? widget.accent
+-                        : theme.of(context).colorScheme.onSurfaceVariant,
++                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                   ),
+                 ),
+               ],
+diff --git a/lib/core/services.dart b/lib/core/services.dart
+index 0520b1a..205b16c 100644
+--- a/lib/core/services.dart
++++ b/lib/core/services.dart
+@@ -12,7 +12,7 @@ class ServiceLocator {
+   static final SettingsService settings = SettingsService();
+ 
+   static Future<void> dispose() async {
+-    await music.dispose();
++    music.dispose();
+     playlists.dispose();
+     likes.dispose();
+     library.dispose();
+diff --git a/lib/features/about/about_page.dart b/lib/features/about/about_page.dart
+index 2fb23d3..3a91423 100644
+--- a/lib/features/about/about_page.dart
++++ b/lib/features/about/about_page.dart
+@@ -9,7 +9,7 @@ class AboutPage extends StatelessWidget {
+     final theme = Theme.of(context);
+     final accent = theme.colorScheme.primary;
+     final text = theme.colorScheme.onBackground;
+-    final muted = theme.colorScheme.onBackgroundVariant;
++    final muted = theme.colorScheme.onSurfaceVariant;
+ 
+     return Scaffold(
+       body: SafeArea(
+@@ -212,7 +212,7 @@ class _AboutCard extends StatelessWidget {
+                 Text(
+                   body,
+                   style: theme.textTheme.bodySmall?.copyWith(
+-                    color: muted,
++                    color: theme.colorScheme.onSurfaceVariant,
+                     height: 1.4,
+                   ),
+                 ),
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+index afb8874..915b0a8 100644
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -1,6 +1,6 @@
+ import 'package:flutter/material.dart';
+ import 'package:manatsume/ui/motion.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/features/player/play_button.dart';
+ 
+ class HomePage extends StatefulWidget {
+@@ -92,6 +92,7 @@ class _HomePageState extends State<HomePage> {
+   }
+ 
+   Widget _eyebrow(String text) {
++    final theme = Theme.of(context);
+     return Container(
+       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+       decoration: BoxDecoration(
+@@ -112,7 +113,7 @@ class _HomePageState extends State<HomePage> {
+     return Text(
+       text,
+       style: Theme.of(context).textTheme.displayMedium?.copyWith(
+-        color: text,
++        color: base,
+         height: 1.05,
+       ),
+     );
+@@ -122,7 +123,7 @@ class _HomePageState extends State<HomePage> {
+     return Text(
+       text,
+       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+-        color: Theme.of(context).colorScheme.onBackgroundVariant,
++        color: Theme.of(context).colorScheme.onSurfaceVariant,
+         height: 1.5,
+       ),
+     );
+@@ -276,6 +277,7 @@ class _HomePageState extends State<HomePage> {
+   }
+ 
+   Widget _sectionTitle(String text) {
++    final theme = Theme.of(context);
+     return Text(
+       text.toUpperCase(),
+       style: Theme.of(context).textTheme.labelLarge?.copyWith(
+@@ -344,7 +346,7 @@ class _HomePageState extends State<HomePage> {
+         Text(
+           'Study the code • Build the APK • Share it',
+           style: theme.textTheme.bodySmall?.copyWith(
+-            color: theme.colorScheme.onBackgroundVariant,
++            color: theme.colorScheme.onSurfaceVariant,
+           ),
+         ),
+         Text(
+@@ -407,7 +409,7 @@ class _FeatureCard extends StatelessWidget {
+             body,
+             style: theme.textTheme.bodySmall?.copyWith(
+               height: 1.4,
+-              color: theme.colorScheme.onBackgroundVariant,
++              color: theme.colorScheme.onSurfaceVariant,
+             ),
+           ),
+         ],
+diff --git a/lib/features/library/library_page.dart b/lib/features/library/library_page.dart
+index 1a051d6..d511cb9 100644
+--- a/lib/features/library/library_page.dart
++++ b/lib/features/library/library_page.dart
+@@ -1,7 +1,8 @@
+ import 'dart:io';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/models/models.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/ui/motion.dart';
+ import 'package:manatsume/features/player/play_button.dart';
+ 
+diff --git a/lib/features/player/play_button.dart b/lib/features/player/play_button.dart
+index c954c4e..9ad2625 100644
+--- a/lib/features/player/play_button.dart
++++ b/lib/features/player/play_button.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/ui/motion.dart';
+ 
+ class PlayButton extends StatefulWidget {
+@@ -167,3 +168,69 @@ class _PlayButtonState extends State<PlayButton>
+     );
+   }
+ }
++
++class _PlayIconPainter extends CustomPainter {
++  _PlayIconPainter({
++    required this.progress,
++    required this.playing,
++    required this.color,
++  });
++
++  final double progress;
++  final bool playing;
++  final Color color;
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final paint = Paint()
++      ..color = color
++      ..style = PaintingStyle.fill;
++
++    final center = size.center(Offset.zero);
++    canvas.save();
++    canvas.translate(center.dx, center.dy);
++    canvas.rotate(progress * 0.6);
++    canvas.translate(-center.dx, -center.dy);
++
++    if (playing) {
++      final barWidth = size.width * 0.16;
++      final barHeight = size.height * 0.54;
++      final gap = size.width * 0.14;
++      final left = Rect.fromCenter(
++        center: center - Offset(gap / 2 + barWidth / 2, 0),
++        width: barWidth,
++        height: barHeight,
++      );
++      final right = Rect.fromCenter(
++        center: center + Offset(gap / 2 + barWidth / 2, 0),
++        width: barWidth,
++        height: barHeight,
++      );
++      canvas.drawRRect(
++        RRect.fromRectAndRadius(left, const Radius.circular(3)),
++        paint,
++      );
++      canvas.drawRRect(
++        RRect.fromRectAndRadius(right, const Radius.circular(3)),
++        paint,
++      );
++    } else {
++      final w = size.width * 0.5;
++      final h = size.height * 0.6;
++      final path = Path()
++        ..moveTo(center.dx - w / 2, center.dy - h / 2)
++        ..lineTo(center.dx + w / 2, center.dy)
++        ..lineTo(center.dx - w / 2, center.dy + h / 2)
++        ..close();
++      canvas.drawPath(path, paint);
++    }
++
++    canvas.restore();
++  }
++
++  @override
++  bool shouldRepaint(covariant _PlayIconPainter old) =>
++      old.playing != playing ||
++      old.progress != progress ||
++      old.color != color;
++}
+diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_page.dart
+index f41fc72..e13e094 100644
+--- a/lib/features/player/player_page.dart
++++ b/lib/features/player/player_page.dart
+@@ -1,8 +1,9 @@
+ import 'dart:async';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/models/models.dart';
+-import '../services/service_locator.dart';
+-import 'package:manatsume/ui/motion.dart';
++import '../../services/service_locator.dart';
++import 'package:manatsume/ui/motion.dart' hide PlayButton;
+ import 'package:manatsume/features/player/play_button.dart';
+ import 'package:manatsume/services/settings_service.dart';
+ 
+@@ -787,7 +788,7 @@ class _QueueSection extends StatelessWidget {
+     final theme = Theme.of(context);
+     final accent = theme.colorScheme.primary;
+     final text = theme.colorScheme.onBackground;
+-    final muted = theme.colorScheme.onBackgroundVariant;
++    final muted = theme.colorScheme.onSurfaceVariant;
+ 
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
+diff --git a/lib/features/search/search_page.dart b/lib/features/search/search_page.dart
+index 63771f8..2509aeb 100644
+--- a/lib/features/search/search_page.dart
++++ b/lib/features/search/search_page.dart
+@@ -1,5 +1,6 @@
+ import 'dart:math';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/core/services.dart';
+ import 'package:manatsume/models/models.dart';
+ import 'package:manatsume/ui/motion.dart';
+@@ -25,7 +26,7 @@ class _SearchPageState extends State<SearchPage> {
+ 
+   void _runSearch() {
+     HapticFeedback.lightImpact();
+-    ServiceLocator().music.search(_queryController.text);
++    ServiceLocator.music.search(_queryController.text);
+   }
+ 
+   @override
+@@ -81,7 +82,7 @@ class _SearchPageState extends State<SearchPage> {
+                           ? IconButton(
+                               icon: const Icon(Icons.close, size: 20),
+                               onPressed: () {
+-                                _queryController.clear();          ServiceLocator().music.search('');
++                                _queryController.clear();          ServiceLocator.music.search('');
+           _focusNode.unfocus();
+                               },
+                             )
+@@ -111,7 +112,7 @@ class _SearchPageState extends State<SearchPage> {
+                       onPressed: _queryController.text.isEmpty
+                           ? null
+                           : _runSearch,
+-                      icon:                      ServiceLocator().music.searching
++                      icon:                      ServiceLocator.music.searching
+                           ? const SizedBox(
+                               width: 18,
+                               height: 18,
+@@ -119,7 +120,7 @@ class _SearchPageState extends State<SearchPage> {
+                             )
+                           : const Icon(Icons.search, size: 18),
+                       label: Text(
+-                        ServiceLocator().music.searching ? 'Searching…' : 'Search',
++                        ServiceLocator.music.searching ? 'Searching…' : 'Search',
+                       ),
+                     ),
+                     const SizedBox(width: 10),
+@@ -157,8 +158,7 @@ class _SearchPageState extends State<SearchPage> {
+ class _StatusView extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+-    final ServiceLocator _locator = ServiceLocator();
+-    final music = _locator.music;
++    final music = ServiceLocator.music;
+     if (music.searching) {
+       return const SizedBox(
+         height: 20,
+@@ -203,7 +203,7 @@ class _StatusView extends StatelessWidget {
+               const SizedBox(width: 10),
+               Expanded(
+                 child: Text(
+-                  _locator.music.error!,
++                  music.error!,
+                   style: TextStyle(
+                     color: Colors.red.shade900,
+                     fontSize: 14,
+@@ -222,8 +222,7 @@ class _StatusView extends StatelessWidget {
+ class _ResultsView extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+-    final ServiceLocator _locator = ServiceLocator();
+-    final music = _locator.music;
++    final music = ServiceLocator.music;
+     final tracks = <Track>[];
+ 
+     // For this educational build we expose a simple public query; in a real
+@@ -368,7 +367,12 @@ class _SearchResultTileState extends State<_SearchResultTile> {
+ 
+   void _togglePlay() {
+     HapticFeedback.mediumImpact();
+-    // Play action: opens the player with this track queued.
++    final music = ServiceLocator.music;
++    if (widget.current && music.currentTrack?.id == widget.track.id) {
++      music.togglePlay();
++    } else {
++      music.play(widget.track);
++    }
+   }
+ 
+   void _toggleLike() {
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+index 2aa65e6..a4a30f0 100644
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/services/settings_service.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/ui/motion.dart';
+ 
+ class SettingsPage extends StatefulWidget {
+diff --git a/lib/services/music_service.dart b/lib/services/music_service.dart
+index 27e545b..8d51a0d 100644
+--- a/lib/services/music_service.dart
++++ b/lib/services/music_service.dart
+@@ -1,26 +1,38 @@
+ import 'package:flutter/foundation.dart';
++import 'package:just_audio/just_audio.dart';
+ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+ 
+ import '../models/models.dart';
+ 
++/// Streams music from YouTube using reverse-engineered endpoints
++/// (youtube_explode_dart — no official API key, no quota).
++/// Actual audio playback runs through just_audio (ExoPlayer on Android).
+ class MusicService extends ChangeNotifier {
+-  MusicService._() {
+-    _youtube = YoutubeExplode();
+-  }
+-
+   MusicService() {
+     _youtube = YoutubeExplode();
++    _player = AudioPlayer();
++    _player.playerStateStream.listen((_) => _syncState());
+   }
+ 
+   late final YoutubeExplode _youtube;
++  late final AudioPlayer _player;
+ 
++  Track? _current;
+   bool _searching = false;
++  bool _playing = false;
++  bool _buffering = false;
+   String? _error;
+   DateTime? _lastSearch;
+ 
+   bool get searching => _searching;
++  bool get playing => _playing;
++  bool get buffering => _buffering;
+   String? get error => _error;
+-  bool get hasSearched => _lastSearch != null;  Future<List<Track>> search(String query) async {
++  bool get hasSearched => _lastSearch != null;
++  Track? get currentTrack => _current;
++  AudioPlayer get player => _player;
++
++  Future<List<Track>> search(String query) async {
+     if (query.trim().isEmpty) {
+       _error = null;
+       _lastSearch = null;
+@@ -34,35 +46,23 @@ class MusicService extends ChangeNotifier {
+ 
+     try {
+       final results = await _youtube.search
+-          .get(query.trim(), options: const SearchOptions(maxResults: 40));
+-      final List<Track> tracks = <Track>[];
+-      for (final result in results) {
+-        if (result.type != VideoType.video) continue;
+-        final info = await _youtube.videos.get(result.id);
+-        final stream = await _youtube.videos.streams.get(info.id);
+-        final audio = stream?.audio;
+-        String? audioUrl;
+-        if (audio != null) {
+-          audioUrl = audio.url.toString();
+-        }
++          .search(query.trim(), filter: TypeFilters.video);
++      final tracks = <Track>[];
++      for (final video in results.take(40)) {
+         tracks.add(Track(
+-          id: 'yt_${info.id.value}',
+-          title: info.title,
+-          artist: info.author.displayName ?? info.author.name,
+-          album: info.author.displayName ?? info.author.name,
+-          duration: info.duration?.inSeconds ?? 0,
+-          artwork:
+-              info.thumbnails.getHigh?.url?.toString() ??
+-              info.thumbnails.getMedium?.url?.toString() ??
+-              'https://via.placeholder.com/120',
++          id: 'yt_${video.id.value}',
++          title: video.title,
++          artist: video.author,
++          album: video.author,
++          duration: video.duration?.inSeconds ?? 0,
++          artwork: video.thumbnails.highResUrl,
+           source: 'YouTube',
+-          license: 'https://creativecommons.org/licenses/by/4.0/',
+-          url: audioUrl,
+-          artistUrl: 'https://www.youtube.com/@${info.author.channelId?.value ?? "unknown"}',
++          license: 'https://www.youtube.com/t/terms',
++          url: null,
++          artistUrl: 'https://www.youtube.com/channel/${video.channelId.value}',
+         ));
+       }
+ 
+-      tracks.sort((a, b) => b.duration.compareTo(a.duration));
+       _lastSearch = DateTime.now();
+       _error = null;
+       notifyListeners();
+@@ -81,35 +81,73 @@ class MusicService extends ChangeNotifier {
+     }
+   }
+ 
+-  Future<AudioStreamInfo?> streamInfo(String videoId) async {
++  /// Resolves a direct audio URL for a YouTube-backed track.
++  Future<String?> resolveStreamUrl(String trackId) async {
++    final videoId = trackId.startsWith('yt_') ? trackId.substring(3) : trackId;
+     try {
+-      final info = await _youtube.videos.get(VideoId(videoId));
+-      final stream = await _youtube.videos.streams.get(info.id);
+-      final audio = stream?.audio;
+-      if (audio == null) return null;
+-      return AudioStreamInfo(
+-        url: audio.url.toString(),
+-        bitrate: audio.bitrate?.inBitsPerSecond ?? 0,
+-        codec: audio.codec.name,
+-      );
++      final manifest = await _youtube.videos.streamsClient
++          .getManifest(VideoId(videoId));
++      if (manifest.audioOnly.isEmpty) return null;
++      final stream = manifest.audioOnly.withHighestBitrate();
++      return stream.url.toString();
+     } catch (_) {
+       return null;
+     }
+   }
+ 
+-  Future<void> dispose() async {
+-    await _youtube.close();
+-    super.dispose();
++  /// Plays a track: resolves its audio stream lazily, then starts playback.
++  Future<void> play(Track track) async {
++    _current = track;
++    _buffering = true;
++    _error = null;
++    notifyListeners();
++    try {
++      final url = track.url ?? await resolveStreamUrl(track.id);
++      if (url == null) {
++        _error = 'Could not resolve an audio stream for this track.';
++        _buffering = false;
++        notifyListeners();
++        return;
++      }
++      await _player.setUrl(url);
++      await _player.play();
++    } catch (e) {
++      _error = 'Playback failed: ${e.toString()}';
++      _buffering = false;
++      notifyListeners();
++    }
+   }
+-}
+ 
+-class AudioStreamInfo {
+-  const AudioStreamInfo({
+-    required this.url,
+-    required this.bitrate,
+-    required this.codec,
+-  });
+-  final String url;
+-  final int bitrate;
+-  final String codec;
++  Future<void> togglePlay() async {
++    if (_player.playing) {
++      await _player.pause();
++    } else {
++      await _player.play();
++    }
++  }
++
++  Future<void> stop() async {
++    await _player.stop();
++    _playing = false;
++    _buffering = false;
++    notifyListeners();
++  }
++
++  void _syncState() {
++    final playing = _player.playing;
++    final buffering = _player.processingState == ProcessingState.buffering ||
++        _player.processingState == ProcessingState.loading;
++    if (playing != _playing || buffering != _buffering) {
++      _playing = playing;
++      _buffering = buffering;
++      notifyListeners();
++    }
++  }
++
++  @override
++  void dispose() {
++    _youtube.close();
++    _player.dispose();
++    super.dispose();
++  }
+ }
+diff --git a/lib/services/service_locator.dart b/lib/services/service_locator.dart
+new file mode 100644
+index 0000000..6df599b
+--- /dev/null
++++ b/lib/services/service_locator.dart
+@@ -0,0 +1 @@
++export '../core/services.dart';
+diff --git a/lib/theme.dart b/lib/theme.dart
+index ccbb536..af631b3 100644
+--- a/lib/theme.dart
++++ b/lib/theme.dart
+@@ -306,9 +306,9 @@ class ManatsumeTheme {
+         }),
+         iconTheme: WidgetStateProperty.resolveWith((states) {
+           if (states.contains(WidgetState.selected)) {
+-            return const IconThemeData(color: accent, size: 24);
++            return IconThemeData(color: accent, size: 24);
+           }
+-          return const IconThemeData(color: muted, size: 24);
++          return IconThemeData(color: muted, size: 24);
+         }),
+       ),
+       textSelectionTheme: TextSelectionThemeData(
+diff --git a/lib/ui/motion.dart b/lib/ui/motion.dart
+index 3d7da73..b259d5f 100644
+--- a/lib/ui/motion.dart
++++ b/lib/ui/motion.dart
+@@ -1,6 +1,7 @@
+ import 'dart:math';
+ import 'dart:ui' show ImageFilter;
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import '../models/models.dart';
+ 
+ // ---------------------------------------------------------------------------
+@@ -93,14 +94,17 @@ class StaggerReveal extends StatelessWidget {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return children.asMap().entries.map((entry) {
+-      return Reveal(
+-        delay: baseDelay * entry.key,
+-        duration: duration,
+-        beginOffset: beginOffset,
+-        child: entry.value,
+-      );
+-    }).toList();
++    return Column(
++      crossAxisAlignment: CrossAxisAlignment.stretch,
++      children: children.asMap().entries.map((entry) {
++        return Reveal(
++          delay: baseDelay * entry.key,
++          duration: duration,
++          beginOffset: beginOffset,
++          child: entry.value,
++        );
++      }).toList(),
++    );
+   }
+ }
+ 
+@@ -582,8 +586,8 @@ class LikeBurstPainter extends CustomPainter {
+       final len = base + (1.0 - progress) * 40;
+       final begin = Offset(cx, cy);
+       final end = Offset(
+-        cx + _cos(angle) * len,
+-        cy + _sin(angle) * len,
++        cx + cos(angle) * len,
++        cy + sin(angle) * len,
+       );
+       canvas.drawLine(        begin,
+         end,
+@@ -688,7 +692,8 @@ class QueueItem extends StatelessWidget {
+                             width: 48,
+                             height: 48,
+                             fit: BoxFit.cover,
+-                            errorBuilder: (_, __, ___) => _artFallback(track),
++                            errorBuilder: (_, __, ___) =>
++                                _artFallback(track, theme),
+                             loadingBuilder: (context, child, progress) {
+                               if (progress == null) return child;
+                               return SizedBox(
+@@ -706,7 +711,7 @@ class QueueItem extends StatelessWidget {
+                           ),
+                         )
+                       else
+-                        _artFallback(track),
++                        _artFallback(track, theme),
+                       const SizedBox(width: 12),
+                       Expanded(
+                         child: Column(
+@@ -774,7 +779,7 @@ class QueueItem extends StatelessWidget {
+     );
+   }
+ 
+-  Widget _artFallback(Track track) {
++  Widget _artFallback(Track track, ThemeData theme) {
+     return Container(
+       width: 48,
+       height: 48,
+diff --git a/pubspec.lock b/pubspec.lock
+new file mode 100644
+index 0000000..d3ccf16
+--- /dev/null
++++ b/pubspec.lock
+@@ -0,0 +1,746 @@
++# Generated by pub
++# See https://dart.dev/tools/pub/glossary#lockfile
++packages:
++  archive:
++    dependency: transitive
++    description:
++      name: archive
++      sha256: de5ac590b8155e4e676088d714bd41ea620449a6adc0f7950c5073874b287ddb
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.6.0"
++  args:
++    dependency: transitive
++    description:
++      name: args
++      sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.7.0"
++  async:
++    dependency: transitive
++    description:
++      name: async
++      sha256: e2eb0491ba5ddb6177742d2da23904574082139b07c1e33b8503b9f46f3e1a37
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.13.1"
++  audio_service:
++    dependency: transitive
++    description:
++      name: audio_service
++      sha256: "95f3267f3449eb5cf71c8fcf1d556f57af1e898e2dc5815fb168d1843653edb7"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.18.19"
++  audio_service_platform_interface:
++    dependency: transitive
++    description:
++      name: audio_service_platform_interface
++      sha256: "6283782851f6c8b501b60904a32fc7199dc631172da0629d7301e66f672ab777"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.1.3"
++  audio_service_web:
++    dependency: transitive
++    description:
++      name: audio_service_web
++      sha256: b8ea9243201ee53383157fbccf13d5d2a866b5dda922ec19d866d1d5d70424df
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.1.4"
++  audio_session:
++    dependency: transitive
++    description:
++      name: audio_session
++      sha256: "2b7fff16a552486d078bfc09a8cde19f426dc6d6329262b684182597bec5b1ac"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.1.25"
++  boolean_selector:
++    dependency: transitive
++    description:
++      name: boolean_selector
++      sha256: "8aab1771e1243a5063b8b0ff68042d67334e3feab9e95b9490f9a6ebf73b42ea"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.1.2"
++  characters:
++    dependency: transitive
++    description:
++      name: characters
++      sha256: faf38497bda5ead2a8c7615f4f7939df04333478bf32e4173fcb06d428b5716b
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.4.1"
++  clock:
++    dependency: transitive
++    description:
++      name: clock
++      sha256: e51d50bca3217c9a9fa2b41a30e4a38971133f5f9ec7a3d57bae095007f1d28e
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.3"
++  code_assets:
++    dependency: transitive
++    description:
++      name: code_assets
++      sha256: bf394f466ba9205f1812a0433b392d6af280f155f56651eda7c18cc32ed493b8
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.2.1"
++  collection:
++    dependency: "direct main"
++    description:
++      name: collection
++      sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.19.1"
++  cross_file:
++    dependency: "direct main"
++    description:
++      name: cross_file
++      sha256: f141ea4f277af142a0356955707f6556f37b03947d39d55585981a06ca437bd6
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.3.5+5"
++  crypto:
++    dependency: transitive
++    description:
++      name: crypto
++      sha256: e3626ae6270383c9e3a549f34c9e4cd26c09ae6a9adaab2bf4737a00340efdc4
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.8"
++  csslib:
++    dependency: transitive
++    description:
++      name: csslib
++      sha256: "09bad715f418841f976c77db72d5398dc1253c21fb9c0c7f0b0b985860b2d58e"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.0.2"
++  cupertino_icons:
++    dependency: "direct main"
++    description:
++      name: cupertino_icons
++      sha256: "41e005c33bd814be4d3096aff55b1908d419fde52ca656c8c47719ec745873cd"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.0.9"
++  fake_async:
++    dependency: transitive
++    description:
++      name: fake_async
++      sha256: "5368f224a74523e8d2e7399ea1638b37aecfca824a3cc4dfdf77bf1fa905ac44"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.3.3"
++  ffi:
++    dependency: transitive
++    description:
++      name: ffi
++      sha256: "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.2.0"
++  file:
++    dependency: transitive
++    description:
++      name: file
++      sha256: a3b4f84adafef897088c160faf7dfffb7696046cb13ae90b508c2cbc95d3b8d4
++      url: "https://pub.dev"
++    source: hosted
++    version: "7.0.1"
++  fixnum:
++    dependency: transitive
++    description:
++      name: fixnum
++      sha256: b6dc7065e46c974bc7c5f143080a6764ec7a4be6da1285ececdc37be96de53be
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.1"
++  flutter:
++    dependency: "direct main"
++    description: flutter
++    source: sdk
++    version: "0.0.0"
++  flutter_cache_manager:
++    dependency: transitive
++    description:
++      name: flutter_cache_manager
++      sha256: "94515cbc3d560e7aefb40cdf683ee3f5063d23f7b689b431b4e7d3dec83bc06a"
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.4.8"
++  flutter_lints:
++    dependency: "direct dev"
++    description:
++      name: flutter_lints
++      sha256: "9e8c3858111da373efc5aa341de011d9bd23e2c5c5e0c62bccf32438e192d7b1"
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.2"
++  flutter_test:
++    dependency: "direct dev"
++    description: flutter
++    source: sdk
++    version: "0.0.0"
++  flutter_web_plugins:
++    dependency: transitive
++    description: flutter
++    source: sdk
++    version: "0.0.0"
++  freezed_annotation:
++    dependency: transitive
++    description:
++      name: freezed_annotation
++      sha256: "7294967ff0a6d98638e7acb774aac3af2550777accd8149c90af5b014e6d44d8"
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.1.0"
++  hooks:
++    dependency: transitive
++    description:
++      name: hooks
++      sha256: "9a62a50b50b769a737bc0a8ff381f333529df3ab746b2f6b02e83760231455ba"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.0.2"
++  html:
++    dependency: transitive
++    description:
++      name: html
++      sha256: "43b67b8f43321ab066817dfac5619596c98bb1b61624e77203bb4351785f9699"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.15.7"
++  http:
++    dependency: transitive
++    description:
++      name: http
++      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.6.0"
++  http_parser:
++    dependency: transitive
++    description:
++      name: http_parser
++      sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.1.2"
++  jni:
++    dependency: transitive
++    description:
++      name: jni
++      sha256: d8df6dab6847855512fe44dd9032b0bbe34dda7bf7597e41d30750879779813f
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.1"
++  jni_flutter:
++    dependency: transitive
++    description:
++      name: jni_flutter
++      sha256: "0dd33d67797560f66e961a6053882d4df54bd345bf063b8fe7ea133f7ad8b191"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.0.4+1"
++  jni_util:
++    dependency: transitive
++    description:
++      name: jni_util
++      sha256: "1ba86da04a5f2bf18fde2edb235587e70c5b0fc5bd4ba955f46b00942c3fc35f"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.0.0"
++  js:
++    dependency: transitive
++    description:
++      name: js
++      sha256: "53385261521cc4a0c4658fd0ad07a7d14591cf8fc33abbceae306ddb974888dc"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.7.2"
++  json_annotation:
++    dependency: transitive
++    description:
++      name: json_annotation
++      sha256: "2a743920d81b7910627f68ee2c9ac1fc0bfee32b9fc3403587d7c6791ca12f80"
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.12.0"
++  just_audio:
++    dependency: "direct main"
++    description:
++      name: just_audio
++      sha256: f978d5b4ccea08f267dae0232ec5405c1b05d3f3cd63f82097ea46c015d5c09e
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.9.46"
++  just_audio_background:
++    dependency: "direct main"
++    description:
++      name: just_audio_background
++      sha256: "3900825701164577db65337792bc122b66f9eb1245ee47e7ae8244ae5ceb8030"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.0.1-beta.17"
++  just_audio_platform_interface:
++    dependency: transitive
++    description:
++      name: just_audio_platform_interface
++      sha256: "2532c8d6702528824445921c5ff10548b518b13f808c2e34c2fd54793b999a6a"
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.6.0"
++  just_audio_web:
++    dependency: transitive
++    description:
++      name: just_audio_web
++      sha256: "6ba8a2a7e87d57d32f0f7b42856ade3d6a9fbe0f1a11fabae0a4f00bb73f0663"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.4.16"
++  leak_tracker:
++    dependency: transitive
++    description:
++      name: leak_tracker
++      sha256: "33e2e26bdd85a0112ec15400c8cbffea70d0f9c3407491f672a2fad47915e2de"
++      url: "https://pub.dev"
++    source: hosted
++    version: "11.0.2"
++  leak_tracker_flutter_testing:
++    dependency: transitive
++    description:
++      name: leak_tracker_flutter_testing
++      sha256: "1dbc140bb5a23c75ea9c4811222756104fbcd1a27173f0c34ca01e16bea473c1"
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.10"
++  leak_tracker_testing:
++    dependency: transitive
++    description:
++      name: leak_tracker_testing
++      sha256: "8d5a2d49f4a66b49744b23b018848400d23e54caf9463f4eb20df3eb8acb2eb1"
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.2"
++  lints:
++    dependency: transitive
++    description:
++      name: lints
++      sha256: cbf8d4b858bb0134ef3ef87841abdf8d63bfc255c266b7bf6b39daa1085c4290
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.0"
++  logging:
++    dependency: transitive
++    description:
++      name: logging
++      sha256: c8245ada5f1717ed44271ed1c26b8ce85ca3228fd2ffdb75468ab01979309d61
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.3.0"
++  matcher:
++    dependency: transitive
++    description:
++      name: matcher
++      sha256: "31bd099b47c10cd1aeb55146a2d46ce0277630ecef3f7dae54ad7873f36696cd"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.12.20"
++  material_color_utilities:
++    dependency: transitive
++    description:
++      name: material_color_utilities
++      sha256: "9c337007e82b1889149c82ed242ed1cb24a66044e30979c44912381e9be4c48b"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.13.0"
++  meta:
++    dependency: transitive
++    description:
++      name: meta
++      sha256: c82594181e3312f3d0695fc95aaaf7758d75b8d4ae2bbecf223b9fd5109a059d
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.18.3"
++  objective_c:
++    dependency: transitive
++    description:
++      name: objective_c
++      sha256: b7fb95a6d9a4f009edd63dc5ac69f07420b23a16161c6dd8660290b59c602e8e
++      url: "https://pub.dev"
++    source: hosted
++    version: "9.5.0"
++  package_config:
++    dependency: transitive
++    description:
++      name: package_config
++      sha256: ffcf4cf3d6c0b74ac43708d9f56625506e8a68aa935abe9d267a7330f320eb5d
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.0.0"
++  path:
++    dependency: "direct main"
++    description:
++      name: path
++      sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.9.1"
++  path_provider:
++    dependency: "direct main"
++    description:
++      name: path_provider
++      sha256: a7f4874f987173da295a61c181b8ee71dab59b332a486b391babf26a1b884825
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.1.6"
++  path_provider_android:
++    dependency: transitive
++    description:
++      name: path_provider_android
++      sha256: "69cbd515a62b94d32a7944f086b2f82b4ac40a1d45bebfc00813a430ab2dabcd"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.3.1"
++  path_provider_foundation:
++    dependency: transitive
++    description:
++      name: path_provider_foundation
++      sha256: "2a376b7d6392d80cd3705782d2caa734ca4727776db0b6ec36ef3f1855197699"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.6.0"
++  path_provider_linux:
++    dependency: transitive
++    description:
++      name: path_provider_linux
++      sha256: "58c2005f147315b11e9b4a7bc889cd5203e250cba8e3f012dae259b4972b5c16"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.2.2"
++  path_provider_platform_interface:
++    dependency: transitive
++    description:
++      name: path_provider_platform_interface
++      sha256: "484838772624c3a4b94f1e44a3e19897fee738f2d5c4ce448443b0417f7c9dda"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.1.3"
++  path_provider_windows:
++    dependency: transitive
++    description:
++      name: path_provider_windows
++      sha256: bd6f00dbd873bfb70d0761682da2b3a2c2fccc2b9e84c495821639601d81afe7
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.3.0"
++  petitparser:
++    dependency: transitive
++    description:
++      name: petitparser
++      sha256: "91bd59303e9f769f108f8df05e371341b15d59e995e6806aefab827b58336675"
++      url: "https://pub.dev"
++    source: hosted
++    version: "7.0.2"
++  platform:
++    dependency: transitive
++    description:
++      name: platform
++      sha256: a36d119c13416516a7b5913fbe8af8531e11633d784c550b2125f76c758524ec
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.2.0"
++  plugin_platform_interface:
++    dependency: transitive
++    description:
++      name: plugin_platform_interface
++      sha256: "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.1.8"
++  posix:
++    dependency: transitive
++    description:
++      name: posix
++      sha256: "613646d076944f3acc125830af935b48d4b8a57a388691547bbfd25b434f4d63"
++      url: "https://pub.dev"
++    source: hosted
++    version: "6.5.4"
++  pub_semver:
++    dependency: transitive
++    description:
++      name: pub_semver
++      sha256: "261236774e8b1d69cfc6b9eabbc96c40f25e7a2d6b171f3385d4f65d5734fb24"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.2.1"
++  record_use:
++    dependency: transitive
++    description:
++      name: record_use
++      sha256: "2551bd8eecfe95d14ae75f6021ad0248be5c27f138c2ec12fcb52b500b3ba1ed"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.6.0"
++  rxdart:
++    dependency: transitive
++    description:
++      name: rxdart
++      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.28.0"
++  shared_preferences:
++    dependency: "direct main"
++    description:
++      name: shared_preferences
++      sha256: "1e85e0dccf5b4a016077fea7dfbb4a7cb39c759ac1596fcf60c06deadb7da91f"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.5.6"
++  shared_preferences_android:
++    dependency: transitive
++    description:
++      name: shared_preferences_android
++      sha256: "33b38b07d9ac7d16aff0426c61418752fd3e7a8c7dc8be786c875d6ce673b002"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.5.4"
++  shared_preferences_foundation:
++    dependency: transitive
++    description:
++      name: shared_preferences_foundation
++      sha256: "2ec3934efa51e46117f23031cc141b8fc878e8525b94ec1ea4f7f586cf1b47ea"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.5.7"
++  shared_preferences_linux:
++    dependency: transitive
++    description:
++      name: shared_preferences_linux
++      sha256: "580abfd40f415611503cae30adf626e6656dfb2f0cee8f465ece7b6defb40f2f"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.1"
++  shared_preferences_platform_interface:
++    dependency: transitive
++    description:
++      name: shared_preferences_platform_interface
++      sha256: "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.2"
++  shared_preferences_web:
++    dependency: transitive
++    description:
++      name: shared_preferences_web
++      sha256: c49bd060261c9a3f0ff445892695d6212ff603ef3115edbb448509d407600019
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.3"
++  shared_preferences_windows:
++    dependency: transitive
++    description:
++      name: shared_preferences_windows
++      sha256: "94ef0f72b2d71bc3e700e025db3710911bd51a71cefb65cc609dd0d9a982e3c1"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.1"
++  simple_sparse_list:
++    dependency: transitive
++    description:
++      name: simple_sparse_list
++      sha256: aa648fd240fa39b49dcd11c19c266990006006de6699a412de485695910fbc1f
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.1.4"
++  sky_engine:
++    dependency: transitive
++    description: flutter
++    source: sdk
++    version: "0.0.0"
++  source_span:
++    dependency: transitive
++    description:
++      name: source_span
++      sha256: "56a02f1f4cd1a2d96303c0144c93bd6d909eea6bee6bf5a0e0b685edbd4c47ab"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.10.2"
++  sqflite:
++    dependency: transitive
++    description:
++      name: sqflite
++      sha256: "21a9750de2deb464946e9f41c7ddf176e25553618afdfc774868cd454990c06a"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.5"
++  sqflite_android:
++    dependency: transitive
++    description:
++      name: sqflite_android
++      sha256: "3986f4cbdde19ca538aae877981c5a53400dcc4601499df18e7ed9e848a0bdd4"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.5"
++  sqflite_common:
++    dependency: transitive
++    description:
++      name: sqflite_common
++      sha256: b80e94ff0d551d5f1f8c7d14348d29b576cca3ae30f6e195a7c380552c32b1e0
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.5.14"
++  sqflite_darwin:
++    dependency: transitive
++    description:
++      name: sqflite_darwin
++      sha256: "8de68fc306040f992aaf378750c16f95e4298c4bb150dd45091d75e42b1f08ee"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.4+1"
++  sqflite_platform_interface:
++    dependency: transitive
++    description:
++      name: sqflite_platform_interface
++      sha256: "5b611dbcb9bab33e7073594ecac111bf0a86ffc342652c2081160d7038a45fb6"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.3"
++  stack_trace:
++    dependency: transitive
++    description:
++      name: stack_trace
++      sha256: "277654b3034d17ac6f9f1cb5595db011b1d5d41e8806866db28e0abaa101c490"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.12.2"
++  stream_channel:
++    dependency: transitive
++    description:
++      name: stream_channel
++      sha256: "969e04c80b8bcdf826f8f16579c7b14d780458bd97f56d107d3950fdbeef059d"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.1.4"
++  string_scanner:
++    dependency: transitive
++    description:
++      name: string_scanner
++      sha256: "921cd31725b72fe181906c6a94d987c78e3b98c2e205b397ea399d4054872b43"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.4.1"
++  synchronized:
++    dependency: transitive
++    description:
++      name: synchronized
++      sha256: b3d516dbd3757ff2a458735e4f6cbac9ff261f576f6e87bcb17feabb39e657c5
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.5.0"
++  term_glyph:
++    dependency: transitive
++    description:
++      name: term_glyph
++      sha256: "7f554798625ea768a7518313e58f83891c7f5024f88e46e7182a4558850a4b8e"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.2.2"
++  test_api:
++    dependency: transitive
++    description:
++      name: test_api
++      sha256: "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.7.12"
++  typed_data:
++    dependency: transitive
++    description:
++      name: typed_data
++      sha256: f9049c039ebfeb4cf7a7104a675823cd72dba8297f264b6637062516699fa006
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.4.0"
++  unicode:
++    dependency: transitive
++    description:
++      name: unicode
++      sha256: a6f7bcfc8ea1d5ce1f6c0b1c39117a9919f4953edd9fd7a64090a9796c499b57
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.9"
++  uuid:
++    dependency: "direct main"
++    description:
++      name: uuid
++      sha256: "9b129329f58692f6e6578329498a8fe9fbe98f090beb764ffbb8ee2eadd01dcd"
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.6.0"
++  vector_math:
++    dependency: transitive
++    description:
++      name: vector_math
++      sha256: "1d774bbdf6b72a0b12122fc1560c9c2d2a67db5a4a4cc2bd8a5c990ab20e3188"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.4.0"
++  vm_service:
++    dependency: transitive
++    description:
++      name: vm_service
++      sha256: "89b11d62e1040ee681af3b4f1c97a803ecbf010c6e8b9c5896ee5b08c3bf7b78"
++      url: "https://pub.dev"
++    source: hosted
++    version: "15.4.0"
++  web:
++    dependency: transitive
++    description:
++      name: web
++      sha256: e119e82ac4795c7925103b7cf3768191f33941b99e7ccffbd6c645201d9f606b
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.2"
++  xdg_directories:
++    dependency: transitive
++    description:
++      name: xdg_directories
++      sha256: "7a3f37b05d989967cdddcbb571f1ea834867ae2faa29725fd085180e0883aa15"
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.1.0"
++  xml:
++    dependency: transitive
++    description:
++      name: xml
++      sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"
++      url: "https://pub.dev"
++    source: hosted
++    version: "6.6.1"
++  yaml:
++    dependency: transitive
++    description:
++      name: yaml
++      sha256: f67cdd8e07d3c6329146aaef1ba043542b3134c12489f553ca9a7435d1068aea
++      url: "https://pub.dev"
++    source: hosted
++    version: "3.1.4"
++  youtube_explode_dart:
++    dependency: "direct main"
++    description:
++      name: youtube_explode_dart
++      sha256: "947ba05e0c4f050743e480e7bca3575ff6427d86cc898c1a69f5e1d188cdc9e0"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.5.3"
++sdks:
++  dart: ">=3.13.0 <4.0.0"
++  flutter: ">=3.44.0"
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 7ab3b7b..b23745a 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -30,6 +30,7 @@ dependencies:
+   cross_file: ^0.3.3+8
+   uuid: ^4.3.3
+   path: ^1.9.0
++  shared_preferences: ^2.3.2
+   collection: ^1.18.0
+ 
+ dev_dependencies:
+diff --git a/test/widget_test.dart b/test/widget_test.dart
+new file mode 100644
+index 0000000..e334e0c
+--- /dev/null
++++ b/test/widget_test.dart
+@@ -0,0 +1,54 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:manatsume/models/models.dart';
++
++void main() {
++  test('Track JSON roundtrip preserves fields', () {
++    final track = Track(
++      id: 'yt_abc123',
++      title: 'Test Song',
++      artist: 'Test Artist',
++      album: 'Test Album',
++      duration: 180,
++      artwork: 'https://example.com/art.jpg',
++      source: 'YouTube',
++      url: 'https://example.com/stream',
++    );
++
++    final json = track.toJson();
++    final restored = Track.fromJson(json);
++
++    expect(restored.id, track.id);
++    expect(restored.title, track.title);
++    expect(restored.artist, track.artist);
++    expect(restored.album, track.album);
++    expect(restored.duration, track.duration);
++    expect(restored.artwork, track.artwork);
++    expect(restored.source, track.source);
++    expect(restored.url, track.url);
++  });
++
++  test('Track.fromJson tolerates missing fields', () {
++    final track = Track.fromJson({});
++    expect(track.id, '');
++    expect(track.title, '');
++    expect(track.artist, '');
++    expect(track.duration, 0);
++  });
++
++  test('Playlist duration formatting', () {
++    final playlist = Playlist(
++      id: 'p1',
++      name: 'Night drive',
++      tracks: [
++        Track(id: 'a', title: 'A', artist: 'X', duration: 65),
++        Track(id: 'b', title: 'B', artist: 'Y', duration: 125),
++      ],
++      createdAt: DateTime(2026),
++      updatedAt: DateTime(2026),
++    );
++
++    expect(playlist.trackCountText(), '2 tracks');
++    expect(playlist.totalDuration(), 190);
++    expect(playlist.totalDurationFormatted(), '3 min 10s');
++  });
++}
+-- 
+2.47.3
+

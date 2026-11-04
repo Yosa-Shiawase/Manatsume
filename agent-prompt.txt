@@ -1,0 +1,20 @@
+Fix the failing APK build. I attached `manatsume-ci-fix.patch` — it contains the complete, already-verified fix. Do exactly this, in order, without asking anything:
+
+1. From the repo root of Manatsume (branch main), clean your working tree:
+   git stash -u || true
+   git fetch origin && git reset --hard origin/main
+
+2. Apply the patch as a commit:
+   git am manatsume-ci-fix.patch
+   If `git am` fails, run: git am --abort && git apply -3 manatsume-ci-fix.patch && git add -A && git commit -m "Fix Dart compile errors and verify with Flutter 3.47.9"
+
+3. Push:
+   git push origin main
+
+4. The push triggers "Build APK" in GitHub Actions. Wait for it (poll the Checks API or `gh run watch`, or check https://github.com/Yosa-Shiawase/Manatsume/actions). It takes ~10-15 minutes.
+
+5. If the run is green: reply with just the run link and the artifact name (Manatsume-APK). Do not change any files.
+
+6. If the run fails: download the failed step's log, fix ONLY what the log proves is broken, push again, and repeat until green. Do not reformat, redesign, or touch any UI/animation code — the Dart code is already verified error-free with the same Flutter version CI uses (3.47.9 stable).
+
+Rules: do not modify lib/ UI code, do not regenerate the android/ folder beyond what the workflow already does, do not ask me questions. End product: a green run with the Manatsume-APK artifact uploaded.

@@ -1,0 +1,672 @@
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index a8f0777..c113015 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -10,6 +10,12 @@ jobs:
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v4
++
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: "21"
++
+       - uses: subosito/flutter-action@v2
+         with:
+           channel: stable
+@@ -27,7 +33,8 @@ jobs:
+       - name: Build APK
+         run: flutter build apk --release --split-per-abi
+ 
+-      - uses: actions/upload-artifact@v4
++      - name: Upload APK artifact
++        uses: actions/upload-artifact@v4
+         with:
+           name: Manatsume-APK
+           path: build/app/outputs/flutter-apk/*.apk
+diff --git a/lib/app.dart b/lib/app.dart
+index 6743446..fc555d3 100644
+--- a/lib/app.dart
++++ b/lib/app.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/theme.dart';
+ import 'package:manatsume/services/settings_service.dart';
+ import 'package:manatsume/services/playlist_service.dart';
+@@ -297,7 +298,7 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
+                     size: 24,
+                     color: widget.selected
+                         ? widget.accent
+-                        : theme.of(context).colorScheme.onSurfaceVariant,
++                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                   ),
+                 ),
+               ],
+diff --git a/lib/core/services.dart b/lib/core/services.dart
+index 0520b1a..205b16c 100644
+--- a/lib/core/services.dart
++++ b/lib/core/services.dart
+@@ -12,7 +12,7 @@ class ServiceLocator {
+   static final SettingsService settings = SettingsService();
+ 
+   static Future<void> dispose() async {
+-    await music.dispose();
++    music.dispose();
+     playlists.dispose();
+     likes.dispose();
+     library.dispose();
+diff --git a/lib/features/about/about_page.dart b/lib/features/about/about_page.dart
+index 2fb23d3..3a91423 100644
+--- a/lib/features/about/about_page.dart
++++ b/lib/features/about/about_page.dart
+@@ -9,7 +9,7 @@ class AboutPage extends StatelessWidget {
+     final theme = Theme.of(context);
+     final accent = theme.colorScheme.primary;
+     final text = theme.colorScheme.onBackground;
+-    final muted = theme.colorScheme.onBackgroundVariant;
++    final muted = theme.colorScheme.onSurfaceVariant;
+ 
+     return Scaffold(
+       body: SafeArea(
+@@ -212,7 +212,7 @@ class _AboutCard extends StatelessWidget {
+                 Text(
+                   body,
+                   style: theme.textTheme.bodySmall?.copyWith(
+-                    color: muted,
++                    color: theme.colorScheme.onSurfaceVariant,
+                     height: 1.4,
+                   ),
+                 ),
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+index afb8874..915b0a8 100644
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -1,6 +1,6 @@
+ import 'package:flutter/material.dart';
+ import 'package:manatsume/ui/motion.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/features/player/play_button.dart';
+ 
+ class HomePage extends StatefulWidget {
+@@ -92,6 +92,7 @@ class _HomePageState extends State<HomePage> {
+   }
+ 
+   Widget _eyebrow(String text) {
++    final theme = Theme.of(context);
+     return Container(
+       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+       decoration: BoxDecoration(
+@@ -112,7 +113,7 @@ class _HomePageState extends State<HomePage> {
+     return Text(
+       text,
+       style: Theme.of(context).textTheme.displayMedium?.copyWith(
+-        color: text,
++        color: base,
+         height: 1.05,
+       ),
+     );
+@@ -122,7 +123,7 @@ class _HomePageState extends State<HomePage> {
+     return Text(
+       text,
+       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+-        color: Theme.of(context).colorScheme.onBackgroundVariant,
++        color: Theme.of(context).colorScheme.onSurfaceVariant,
+         height: 1.5,
+       ),
+     );
+@@ -276,6 +277,7 @@ class _HomePageState extends State<HomePage> {
+   }
+ 
+   Widget _sectionTitle(String text) {
++    final theme = Theme.of(context);
+     return Text(
+       text.toUpperCase(),
+       style: Theme.of(context).textTheme.labelLarge?.copyWith(
+@@ -344,7 +346,7 @@ class _HomePageState extends State<HomePage> {
+         Text(
+           'Study the code • Build the APK • Share it',
+           style: theme.textTheme.bodySmall?.copyWith(
+-            color: theme.colorScheme.onBackgroundVariant,
++            color: theme.colorScheme.onSurfaceVariant,
+           ),
+         ),
+         Text(
+@@ -407,7 +409,7 @@ class _FeatureCard extends StatelessWidget {
+             body,
+             style: theme.textTheme.bodySmall?.copyWith(
+               height: 1.4,
+-              color: theme.colorScheme.onBackgroundVariant,
++              color: theme.colorScheme.onSurfaceVariant,
+             ),
+           ),
+         ],
+diff --git a/lib/features/library/library_page.dart b/lib/features/library/library_page.dart
+index 1a051d6..d511cb9 100644
+--- a/lib/features/library/library_page.dart
++++ b/lib/features/library/library_page.dart
+@@ -1,7 +1,8 @@
+ import 'dart:io';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/models/models.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/ui/motion.dart';
+ import 'package:manatsume/features/player/play_button.dart';
+ 
+diff --git a/lib/features/player/play_button.dart b/lib/features/player/play_button.dart
+index c954c4e..9ad2625 100644
+--- a/lib/features/player/play_button.dart
++++ b/lib/features/player/play_button.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/ui/motion.dart';
+ 
+ class PlayButton extends StatefulWidget {
+@@ -167,3 +168,69 @@ class _PlayButtonState extends State<PlayButton>
+     );
+   }
+ }
++
++class _PlayIconPainter extends CustomPainter {
++  _PlayIconPainter({
++    required this.progress,
++    required this.playing,
++    required this.color,
++  });
++
++  final double progress;
++  final bool playing;
++  final Color color;
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final paint = Paint()
++      ..color = color
++      ..style = PaintingStyle.fill;
++
++    final center = size.center(Offset.zero);
++    canvas.save();
++    canvas.translate(center.dx, center.dy);
++    canvas.rotate(progress * 0.6);
++    canvas.translate(-center.dx, -center.dy);
++
++    if (playing) {
++      final barWidth = size.width * 0.16;
++      final barHeight = size.height * 0.54;
++      final gap = size.width * 0.14;
++      final left = Rect.fromCenter(
++        center: center - Offset(gap / 2 + barWidth / 2, 0),
++        width: barWidth,
++        height: barHeight,
++      );
++      final right = Rect.fromCenter(
++        center: center + Offset(gap / 2 + barWidth / 2, 0),
++        width: barWidth,
++        height: barHeight,
++      );
++      canvas.drawRRect(
++        RRect.fromRectAndRadius(left, const Radius.circular(3)),
++        paint,
++      );
++      canvas.drawRRect(
++        RRect.fromRectAndRadius(right, const Radius.circular(3)),
++        paint,
++      );
++    } else {
++      final w = size.width * 0.5;
++      final h = size.height * 0.6;
++      final path = Path()
++        ..moveTo(center.dx - w / 2, center.dy - h / 2)
++        ..lineTo(center.dx + w / 2, center.dy)
++        ..lineTo(center.dx - w / 2, center.dy + h / 2)
++        ..close();
++      canvas.drawPath(path, paint);
++    }
++
++    canvas.restore();
++  }
++
++  @override
++  bool shouldRepaint(covariant _PlayIconPainter old) =>
++      old.playing != playing ||
++      old.progress != progress ||
++      old.color != color;
++}
+diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_page.dart
+index f41fc72..e13e094 100644
+--- a/lib/features/player/player_page.dart
++++ b/lib/features/player/player_page.dart
+@@ -1,8 +1,9 @@
+ import 'dart:async';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/models/models.dart';
+-import '../services/service_locator.dart';
+-import 'package:manatsume/ui/motion.dart';
++import '../../services/service_locator.dart';
++import 'package:manatsume/ui/motion.dart' hide PlayButton;
+ import 'package:manatsume/features/player/play_button.dart';
+ import 'package:manatsume/services/settings_service.dart';
+ 
+@@ -787,7 +788,7 @@ class _QueueSection extends StatelessWidget {
+     final theme = Theme.of(context);
+     final accent = theme.colorScheme.primary;
+     final text = theme.colorScheme.onBackground;
+-    final muted = theme.colorScheme.onBackgroundVariant;
++    final muted = theme.colorScheme.onSurfaceVariant;
+ 
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
+diff --git a/lib/features/search/search_page.dart b/lib/features/search/search_page.dart
+index 63771f8..2509aeb 100644
+--- a/lib/features/search/search_page.dart
++++ b/lib/features/search/search_page.dart
+@@ -1,5 +1,6 @@
+ import 'dart:math';
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/core/services.dart';
+ import 'package:manatsume/models/models.dart';
+ import 'package:manatsume/ui/motion.dart';
+@@ -25,7 +26,7 @@ class _SearchPageState extends State<SearchPage> {
+ 
+   void _runSearch() {
+     HapticFeedback.lightImpact();
+-    ServiceLocator().music.search(_queryController.text);
++    ServiceLocator.music.search(_queryController.text);
+   }
+ 
+   @override
+@@ -81,7 +82,7 @@ class _SearchPageState extends State<SearchPage> {
+                           ? IconButton(
+                               icon: const Icon(Icons.close, size: 20),
+                               onPressed: () {
+-                                _queryController.clear();          ServiceLocator().music.search('');
++                                _queryController.clear();          ServiceLocator.music.search('');
+           _focusNode.unfocus();
+                               },
+                             )
+@@ -111,7 +112,7 @@ class _SearchPageState extends State<SearchPage> {
+                       onPressed: _queryController.text.isEmpty
+                           ? null
+                           : _runSearch,
+-                      icon:                      ServiceLocator().music.searching
++                      icon:                      ServiceLocator.music.searching
+                           ? const SizedBox(
+                               width: 18,
+                               height: 18,
+@@ -119,7 +120,7 @@ class _SearchPageState extends State<SearchPage> {
+                             )
+                           : const Icon(Icons.search, size: 18),
+                       label: Text(
+-                        ServiceLocator().music.searching ? 'Searching…' : 'Search',
++                        ServiceLocator.music.searching ? 'Searching…' : 'Search',
+                       ),
+                     ),
+                     const SizedBox(width: 10),
+@@ -157,8 +158,7 @@ class _SearchPageState extends State<SearchPage> {
+ class _StatusView extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+-    final ServiceLocator _locator = ServiceLocator();
+-    final music = _locator.music;
++    final music = ServiceLocator.music;
+     if (music.searching) {
+       return const SizedBox(
+         height: 20,
+@@ -203,7 +203,7 @@ class _StatusView extends StatelessWidget {
+               const SizedBox(width: 10),
+               Expanded(
+                 child: Text(
+-                  _locator.music.error!,
++                  music.error!,
+                   style: TextStyle(
+                     color: Colors.red.shade900,
+                     fontSize: 14,
+@@ -222,8 +222,7 @@ class _StatusView extends StatelessWidget {
+ class _ResultsView extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+-    final ServiceLocator _locator = ServiceLocator();
+-    final music = _locator.music;
++    final music = ServiceLocator.music;
+     final tracks = <Track>[];
+ 
+     // For this educational build we expose a simple public query; in a real
+@@ -368,7 +367,12 @@ class _SearchResultTileState extends State<_SearchResultTile> {
+ 
+   void _togglePlay() {
+     HapticFeedback.mediumImpact();
+-    // Play action: opens the player with this track queued.
++    final music = ServiceLocator.music;
++    if (widget.current && music.currentTrack?.id == widget.track.id) {
++      music.togglePlay();
++    } else {
++      music.play(widget.track);
++    }
+   }
+ 
+   void _toggleLike() {
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+index 2aa65e6..a4a30f0 100644
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import 'package:manatsume/services/settings_service.dart';
+-import '../services/service_locator.dart';
++import '../../services/service_locator.dart';
+ import 'package:manatsume/ui/motion.dart';
+ 
+ class SettingsPage extends StatefulWidget {
+diff --git a/lib/services/music_service.dart b/lib/services/music_service.dart
+index 27e545b..8d51a0d 100644
+--- a/lib/services/music_service.dart
++++ b/lib/services/music_service.dart
+@@ -1,26 +1,38 @@
+ import 'package:flutter/foundation.dart';
++import 'package:just_audio/just_audio.dart';
+ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+ 
+ import '../models/models.dart';
+ 
++/// Streams music from YouTube using reverse-engineered endpoints
++/// (youtube_explode_dart — no official API key, no quota).
++/// Actual audio playback runs through just_audio (ExoPlayer on Android).
+ class MusicService extends ChangeNotifier {
+-  MusicService._() {
+-    _youtube = YoutubeExplode();
+-  }
+-
+   MusicService() {
+     _youtube = YoutubeExplode();
++    _player = AudioPlayer();
++    _player.playerStateStream.listen((_) => _syncState());
+   }
+ 
+   late final YoutubeExplode _youtube;
++  late final AudioPlayer _player;
+ 
++  Track? _current;
+   bool _searching = false;
++  bool _playing = false;
++  bool _buffering = false;
+   String? _error;
+   DateTime? _lastSearch;
+ 
+   bool get searching => _searching;
++  bool get playing => _playing;
++  bool get buffering => _buffering;
+   String? get error => _error;
+-  bool get hasSearched => _lastSearch != null;  Future<List<Track>> search(String query) async {
++  bool get hasSearched => _lastSearch != null;
++  Track? get currentTrack => _current;
++  AudioPlayer get player => _player;
++
++  Future<List<Track>> search(String query) async {
+     if (query.trim().isEmpty) {
+       _error = null;
+       _lastSearch = null;
+@@ -34,35 +46,23 @@ class MusicService extends ChangeNotifier {
+ 
+     try {
+       final results = await _youtube.search
+-          .get(query.trim(), options: const SearchOptions(maxResults: 40));
+-      final List<Track> tracks = <Track>[];
+-      for (final result in results) {
+-        if (result.type != VideoType.video) continue;
+-        final info = await _youtube.videos.get(result.id);
+-        final stream = await _youtube.videos.streams.get(info.id);
+-        final audio = stream?.audio;
+-        String? audioUrl;
+-        if (audio != null) {
+-          audioUrl = audio.url.toString();
+-        }
++          .search(query.trim(), filter: TypeFilters.video);
++      final tracks = <Track>[];
++      for (final video in results.take(40)) {
+         tracks.add(Track(
+-          id: 'yt_${info.id.value}',
+-          title: info.title,
+-          artist: info.author.displayName ?? info.author.name,
+-          album: info.author.displayName ?? info.author.name,
+-          duration: info.duration?.inSeconds ?? 0,
+-          artwork:
+-              info.thumbnails.getHigh?.url?.toString() ??
+-              info.thumbnails.getMedium?.url?.toString() ??
+-              'https://via.placeholder.com/120',
++          id: 'yt_${video.id.value}',
++          title: video.title,
++          artist: video.author,
++          album: video.author,
++          duration: video.duration?.inSeconds ?? 0,
++          artwork: video.thumbnails.highResUrl,
+           source: 'YouTube',
+-          license: 'https://creativecommons.org/licenses/by/4.0/',
+-          url: audioUrl,
+-          artistUrl: 'https://www.youtube.com/@${info.author.channelId?.value ?? "unknown"}',
++          license: 'https://www.youtube.com/t/terms',
++          url: null,
++          artistUrl: 'https://www.youtube.com/channel/${video.channelId.value}',
+         ));
+       }
+ 
+-      tracks.sort((a, b) => b.duration.compareTo(a.duration));
+       _lastSearch = DateTime.now();
+       _error = null;
+       notifyListeners();
+@@ -81,35 +81,73 @@ class MusicService extends ChangeNotifier {
+     }
+   }
+ 
+-  Future<AudioStreamInfo?> streamInfo(String videoId) async {
++  /// Resolves a direct audio URL for a YouTube-backed track.
++  Future<String?> resolveStreamUrl(String trackId) async {
++    final videoId = trackId.startsWith('yt_') ? trackId.substring(3) : trackId;
+     try {
+-      final info = await _youtube.videos.get(VideoId(videoId));
+-      final stream = await _youtube.videos.streams.get(info.id);
+-      final audio = stream?.audio;
+-      if (audio == null) return null;
+-      return AudioStreamInfo(
+-        url: audio.url.toString(),
+-        bitrate: audio.bitrate?.inBitsPerSecond ?? 0,
+-        codec: audio.codec.name,
+-      );
++      final manifest = await _youtube.videos.streamsClient
++          .getManifest(VideoId(videoId));
++      if (manifest.audioOnly.isEmpty) return null;
++      final stream = manifest.audioOnly.withHighestBitrate();
++      return stream.url.toString();
+     } catch (_) {
+       return null;
+     }
+   }
+ 
+-  Future<void> dispose() async {
+-    await _youtube.close();
+-    super.dispose();
++  /// Plays a track: resolves its audio stream lazily, then starts playback.
++  Future<void> play(Track track) async {
++    _current = track;
++    _buffering = true;
++    _error = null;
++    notifyListeners();
++    try {
++      final url = track.url ?? await resolveStreamUrl(track.id);
++      if (url == null) {
++        _error = 'Could not resolve an audio stream for this track.';
++        _buffering = false;
++        notifyListeners();
++        return;
++      }
++      await _player.setUrl(url);
++      await _player.play();
++    } catch (e) {
++      _error = 'Playback failed: ${e.toString()}';
++      _buffering = false;
++      notifyListeners();
++    }
+   }
+-}
+ 
+-class AudioStreamInfo {
+-  const AudioStreamInfo({
+-    required this.url,
+-    required this.bitrate,
+-    required this.codec,
+-  });
+-  final String url;
+-  final int bitrate;
+-  final String codec;
++  Future<void> togglePlay() async {
++    if (_player.playing) {
++      await _player.pause();
++    } else {
++      await _player.play();
++    }
++  }
++
++  Future<void> stop() async {
++    await _player.stop();
++    _playing = false;
++    _buffering = false;
++    notifyListeners();
++  }
++
++  void _syncState() {
++    final playing = _player.playing;
++    final buffering = _player.processingState == ProcessingState.buffering ||
++        _player.processingState == ProcessingState.loading;
++    if (playing != _playing || buffering != _buffering) {
++      _playing = playing;
++      _buffering = buffering;
++      notifyListeners();
++    }
++  }
++
++  @override
++  void dispose() {
++    _youtube.close();
++    _player.dispose();
++    super.dispose();
++  }
+ }
+diff --git a/lib/services/service_locator.dart b/lib/services/service_locator.dart
+new file mode 100644
+index 0000000..6df599b
+--- /dev/null
++++ b/lib/services/service_locator.dart
+@@ -0,0 +1 @@
++export '../core/services.dart';
+diff --git a/lib/theme.dart b/lib/theme.dart
+index ccbb536..af631b3 100644
+--- a/lib/theme.dart
++++ b/lib/theme.dart
+@@ -306,9 +306,9 @@ class ManatsumeTheme {
+         }),
+         iconTheme: WidgetStateProperty.resolveWith((states) {
+           if (states.contains(WidgetState.selected)) {
+-            return const IconThemeData(color: accent, size: 24);
++            return IconThemeData(color: accent, size: 24);
+           }
+-          return const IconThemeData(color: muted, size: 24);
++          return IconThemeData(color: muted, size: 24);
+         }),
+       ),
+       textSelectionTheme: TextSelectionThemeData(
+diff --git a/lib/ui/motion.dart b/lib/ui/motion.dart
+index 3d7da73..b259d5f 100644
+--- a/lib/ui/motion.dart
++++ b/lib/ui/motion.dart
+@@ -1,6 +1,7 @@
+ import 'dart:math';
+ import 'dart:ui' show ImageFilter;
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
+ import '../models/models.dart';
+ 
+ // ---------------------------------------------------------------------------
+@@ -93,14 +94,17 @@ class StaggerReveal extends StatelessWidget {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return children.asMap().entries.map((entry) {
+-      return Reveal(
+-        delay: baseDelay * entry.key,
+-        duration: duration,
+-        beginOffset: beginOffset,
+-        child: entry.value,
+-      );
+-    }).toList();
++    return Column(
++      crossAxisAlignment: CrossAxisAlignment.stretch,
++      children: children.asMap().entries.map((entry) {
++        return Reveal(
++          delay: baseDelay * entry.key,
++          duration: duration,
++          beginOffset: beginOffset,
++          child: entry.value,
++        );
++      }).toList(),
++    );
+   }
+ }
+ 
+@@ -582,8 +586,8 @@ class LikeBurstPainter extends CustomPainter {
+       final len = base + (1.0 - progress) * 40;
+       final begin = Offset(cx, cy);
+       final end = Offset(
+-        cx + _cos(angle) * len,
+-        cy + _sin(angle) * len,
++        cx + cos(angle) * len,
++        cy + sin(angle) * len,
+       );
+       canvas.drawLine(        begin,
+         end,
+@@ -688,7 +692,8 @@ class QueueItem extends StatelessWidget {
+                             width: 48,
+                             height: 48,
+                             fit: BoxFit.cover,
+-                            errorBuilder: (_, __, ___) => _artFallback(track),
++                            errorBuilder: (_, __, ___) =>
++                                _artFallback(track, theme),
+                             loadingBuilder: (context, child, progress) {
+                               if (progress == null) return child;
+                               return SizedBox(
+@@ -706,7 +711,7 @@ class QueueItem extends StatelessWidget {
+                           ),
+                         )
+                       else
+-                        _artFallback(track),
++                        _artFallback(track, theme),
+                       const SizedBox(width: 12),
+                       Expanded(
+                         child: Column(
+@@ -774,7 +779,7 @@ class QueueItem extends StatelessWidget {
+     );
+   }
+ 
+-  Widget _artFallback(Track track) {
++  Widget _artFallback(Track track, ThemeData theme) {
+     return Container(
+       width: 48,
+       height: 48,
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 7ab3b7b..b23745a 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -30,6 +30,7 @@ dependencies:
+   cross_file: ^0.3.3+8
+   uuid: ^4.3.3
+   path: ^1.9.0
++  shared_preferences: ^2.3.2
+   collection: ^1.18.0
+ 
+ dev_dependencies:
