@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manatsume/app.dart';
-import 'package:manatsume/services/settings_service.dart';
+import 'package:manatsume/core/services.dart';
 
 void main() {
   runApp(const _AppBoot());
@@ -20,7 +20,9 @@ class _AppBootState extends State<_AppBoot> {
   @override
   void initState() {
     super.initState();
-    _settings = SettingsService();
+    // Use the same instance the rest of the app reads through
+    // ServiceLocator, so persisted theme/settings stay consistent.
+    _settings = ServiceLocator.settings;
     _settings.init().then((_) {
       if (mounted) setState(() => _ready = true);
     });

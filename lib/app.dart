@@ -55,6 +55,7 @@ class _ManatsumeAppState extends State<ManatsumeApp>
   void initState() {
     super.initState();
     themeController = ThemeModeController(service: widget.settings);
+    themeController.init(); // restore persisted theme choice, if any
     playlists = PlaylistService();
     likes = LikeService();
     library = LibraryService();
@@ -108,13 +109,16 @@ class _ManatsumeShellState extends State<ManatsumeShell> {
     return Scaffold(
       body: IndexedStack(
         index: _tab,
-        children: const [
-          HomePage(),
-          SearchPage(),
-          LibraryPage(),
-          PlayerPage(),
-          SettingsPage(),
-          AboutPage(),
+        children: [
+          HomePage(
+            onStart: () => _setTab(3),
+            onSearch: () => _setTab(1),
+          ),
+          const SearchPage(),
+          const LibraryPage(),
+          const PlayerPage(),
+          const SettingsPage(),
+          const AboutPage(),
         ],
       ),
       bottomNavigationBar: _BottomNav(

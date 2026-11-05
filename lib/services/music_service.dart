@@ -18,6 +18,7 @@ class MusicService extends ChangeNotifier {
   late final AudioPlayer _player;
 
   Track? _current;
+  List<Track> _results = const <Track>[];
   bool _searching = false;
   bool _playing = false;
   bool _buffering = false;
@@ -30,12 +31,14 @@ class MusicService extends ChangeNotifier {
   String? get error => _error;
   bool get hasSearched => _lastSearch != null;
   Track? get currentTrack => _current;
+  List<Track> get results => _results;
   AudioPlayer get player => _player;
 
   Future<List<Track>> search(String query) async {
     if (query.trim().isEmpty) {
       _error = null;
       _lastSearch = null;
+      _results = const <Track>[];
       notifyListeners();
       return <Track>[];
     }
@@ -64,14 +67,17 @@ class MusicService extends ChangeNotifier {
       }
 
       _lastSearch = DateTime.now();
+      _results = tracks;
       _error = null;
       notifyListeners();
       return tracks;
     } on Exception catch (e) {
+      _results = const <Track>[];
       _error = 'Search failed: ${e.toString()}';
       notifyListeners();
       return <Track>[];
     } catch (e) {
+      _results = const <Track>[];
       _error = 'Search failed unexpectedly.';
       notifyListeners();
       return <Track>[];
@@ -119,12 +125,18 @@ class MusicService extends ChangeNotifier {
   }
 
   Future<void> togglePlay() async {
+    if (_current == null) return;
     if (_player.playing) {
       await _player.pause();
     } else {
       await _player.play();
     }
   }
+
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
+
+  Future<void> seek(Duration position) => _player.seek(position);
 
   Future<void> stop() async {
     await _player.stop();

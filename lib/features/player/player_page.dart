@@ -1,11 +1,11 @@
-import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:manatsume/models/models.dart';
 import '../../services/service_locator.dart';
 import 'package:manatsume/ui/motion.dart' hide PlayButton;
 import 'package:manatsume/features/player/play_button.dart';
-import 'package:manatsume/services/settings_service.dart';
 
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
@@ -17,22 +17,21 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _playCtrl;
-  late final Animation<double> _playScale;
-  late final Animation<double> _playShine;
 
-  final _queue = <Track>[];
-  int _index = 0;
-  bool _playing = false;
-  bool _liked = false;
+  MusicService get _music => ServiceLocator.music;
+  AudioPlayer get _player => _music.player;
+
   bool _shuffle = false;
   RepeatMode _repeat = RepeatMode.off;
   double _volume = 0.8;
-  double _progress = 0.0;
-  double _duration = 1.0;
-  double _buffered = 0.0;
 
-  Track? get current =>
-      _index >= 0 && _index < _queue.length ? _queue[_index] : null;
+  /// Queue shown on this page: the latest search results, so tapping a
+  /// result in Search and then opening Player controls the same audio.
+  List<Track> get _queue => _music.results;
+  int get _index =>
+      _queue.indexWhere((t) => t.id == _music.currentTrack?.id);
+
+  Track? get current => _music.currentTrack;
 
   @override
   void initState() {
@@ -41,64 +40,63 @@ class _PlayerPageState extends State<PlayerPage>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    _playScale = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _playCtrl,
-        curve: Curves.elasticOut,
-      ),
-    );
-    _playShine = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _playCtrl,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeInOut),
-      ),
-    );
-    if (_playing) {
-      _playCtrl.value = 1.0;
-    }
-    _loadQueue();
+    _volume = _player.volume;
   }
 
-  void _loadQueue() {
-    setState(() {
-      _queue.clear();
-      // In a complete build the queue would come from the player store and
-      // the service. For this educational build we model a small demo queue
-      // so the player page can be studied as-is.
-      _queue.addAll(_demoQueue);
-      if (_queue.isNotEmpty && _index < 0) _index = 0;
-    });
+  void _syncPlayCtrl(bool playing) {
+    if (playing && !_playCtrl.isAnimating && _playCtrl.value < 1.0) {
+      _playCtrl.forward(from: _playCtrl.value);
+    } else if (!playing && _playCtrl.value > 0.0) {
+      _playCtrl.reverse(from: _playCtrl.value);
+    }
   }
 
   void _togglePlay() {
     HapticFeedback.mediumImpact();
-    setState(() {
-      _playing = !_playing;
-      if (_playing) {
-        _playCtrl.forward(from: 0.0);
-      } else {
-        _playCtrl.reverse(from: 1.0);
+    if (_music.currentTrack == null) {
+      // Nothing selected yet: start the first search result if we have one.
+      if (_queue.isNotEmpty) {
+        _music.play(_queue.first);
       }
-    });
+      return;
+    }
+    _music.togglePlay();
   }
 
-  void _toggleLike() {
-    HapticFeedback.mediumImpact();
-    setState(() => _liked = !_liked);
+  void _playAt(int index) {
+    if (index < 0 || index >= _queue.length) return;
+    HapticFeedback.lightImpact();
+    _music.play(_queue[index]);
   }
 
   void _next() {
     HapticFeedback.lightImpact();
     if (_queue.isEmpty) return;
-    final next = (_index + 1) % _queue.length;
-    setState(() => _index = next);
+    final i = _index;
+    if (_shuffle && _queue.length > 1) {
+      var r = i;
+      while (r == i) {
+        r = Random().nextInt(_queue.length);
+      }
+      _playAt(r);
+      return;
+    }
+    if (i < 0) {
+      _playAt(0);
+    } else {
+      _playAt((i + 1) % _queue.length);
+    }
   }
 
   void _prev() {
     HapticFeedback.lightImpact();
     if (_queue.isEmpty) return;
-    final prev = (_index - 1 + _queue.length) % _queue.length;
-    setState(() => _index = prev);
+    final i = _index;
+    if (i <= 0) {
+      _playAt(_queue.length - 1);
+    } else {
+      _playAt(i - 1);
+    }
   }
 
   void _toggleShuffle() {
@@ -116,122 +114,149 @@ class _PlayerPageState extends State<PlayerPage>
   @override
   void dispose() {
     _playCtrl.dispose();
+    // Never dispose the shared MusicService player here — it is owned by
+    // ServiceLocator and lives for the whole app session.
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Reveal(
-                beginOffset: const Offset(0.0, 0.12),
-                child: Row(
-                  children: [
-                    Text(
-                      'Now playing',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (current != null) ...[
-                      Text(
-                        current!.artist,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: accent,
+    return ListenableBuilder(
+      listenable: _music,
+      builder: (context, _) {
+        _syncPlayCtrl(_music.playing);
+        final accent = theme.colorScheme.primary;
+
+        return Scaffold(
+          body: SafeArea(
+            child: Column(
+              children: [
+                // header
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Reveal(
+                    beginOffset: const Offset(0.0, 0.12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Now playing',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            letterSpacing: 1.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.open_in_new,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ],
+                        const Spacer(),
+                        if (current != null) ...[
+                          Flexible(
+                            child: Text(
+                              current!.artist,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: accent,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.open_in_new,
+                            size: 16,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-            // artwork
-            Expanded(
-              child: Reveal(
-                delay: 60,
-                beginOffset: const Offset(0.0, 0.14),
-                child: _ArtworkSection(
-                  current: current,
-                  playing: _playing,
-                  liked: _liked,
-                  onLike: _toggleLike,
+                // artwork
+                Expanded(
+                  child: Reveal(
+                    delay: 60,
+                    beginOffset: const Offset(0.0, 0.14),
+                    child: _ArtworkSection(
+                      current: current,
+                      playing: _music.playing,
+                      buffering: _music.buffering,
+                      liked: current != null &&
+                          ServiceLocator.likes.isLiked(current!.id),
+                      onLike: current == null
+                          ? null
+                          : () {
+                              HapticFeedback.mediumImpact();
+                              ServiceLocator.likes.toggle(current!.id);
+                            },
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            // progress
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Reveal(
-                delay: 120,
-                beginOffset: const Offset(0.0, 0.1),
-                child: _ProgressSection(
-                  progress: _progress,
-                  buffered: _buffered,
-                  duration: _duration,
+                // progress (driven by the real player streams)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Reveal(
+                    delay: 120,
+                    beginOffset: const Offset(0.0, 0.1),
+                    child: _ProgressSection(
+                      player: _player,
+                      enabled: current != null,
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            // controls
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Reveal(
-                delay: 160,
-                beginOffset: const Offset(0.0, 0.1),
-                child: _ControlsSection(
-                  playing: _playing,
-                  shuffle: _shuffle,
-                  repeat: _repeat,
-                  volume: _volume,
-                  onPlay: _togglePlay,
-                  onNext: _next,
-                  onPrev: _prev,
-                  onShuffle: _toggleShuffle,
-                  onRepeat: _toggleRepeat,
-                  onVolume: (v) => setState(() => _volume = v),
+                // controls
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Reveal(
+                    delay: 160,
+                    beginOffset: const Offset(0.0, 0.1),
+                    child: _ControlsSection(
+                      playing: _music.playing,
+                      buffering: _music.buffering,
+                      shuffle: _shuffle,
+                      repeat: _repeat,
+                      volume: _volume,
+                      onPlay: _togglePlay,
+                      onNext: _next,
+                      onPrev: _prev,
+                      onShuffle: _toggleShuffle,
+                      onRepeat: _toggleRepeat,
+                      onVolume: (v) {
+                        setState(() => _volume = v);
+                        _music.setVolume(v);
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-            // queue
-            Expanded(
-              child: Reveal(
-                delay: 200,
-                beginOffset: const Offset(0.0, 0.12),
-                child: _QueueSection(
-                  queue: _queue,
-                  index: _index,
-                  playing: _playing,
+                // queue
+                Expanded(
+                  child: Reveal(
+                    delay: 200,
+                    beginOffset: const Offset(0.0, 0.12),
+                    child: _QueueSection(
+                      queue: _queue,
+                      index: _index,
+                      playing: _music.playing,
+                      onPlayAt: _playAt,
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -240,13 +265,15 @@ class _ArtworkSection extends StatelessWidget {
   const _ArtworkSection({
     required this.current,
     required this.playing,
+    required this.buffering,
     required this.liked,
     required this.onLike,
   });
   final Track? current;
   final bool playing;
+  final bool buffering;
   final bool liked;
-  final VoidCallback onLike;
+  final VoidCallback? onLike;
 
   @override
   Widget build(BuildContext context) {
@@ -293,6 +320,20 @@ class _ArtworkSection extends StatelessWidget {
               )
             else
               _artFallback(theme),
+            // buffering veil
+            if (buffering)
+              IgnorePointer(
+                child: ColoredBox(
+                  color: Colors.black.withOpacity(0.35),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                  ),
+                ),
+              ),
             // overlay gradient
             IgnorePointer(
               child: Container(
@@ -314,11 +355,13 @@ class _ArtworkSection extends StatelessWidget {
               right: 16,
               bottom: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface.withOpacity(0.92),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: theme.colorScheme.outline, width: 0.5),
+                  border: Border.all(
+                      color: theme.colorScheme.outline, width: 0.5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.18),
@@ -348,7 +391,7 @@ class _ArtworkSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            current?.title ?? '—',
+                            current?.title ?? 'Nothing playing yet',
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -356,7 +399,7 @@ class _ArtworkSection extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            current?.artist ?? '—',
+                            current?.artist ?? 'Search for a song first',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: accent,
                             ),
@@ -377,7 +420,9 @@ class _ArtworkSection extends StatelessWidget {
                         child: Icon(
                           liked ? Icons.favorite : Icons.favorite_border,
                           key: ValueKey(liked),
-                          color: liked ? accent : theme.colorScheme.onSurfaceVariant,
+                          color: liked
+                              ? accent
+                              : theme.colorScheme.onSurfaceVariant,
                           size: 22,
                         ),
                       ),
@@ -439,78 +484,105 @@ class _ArtGlowPainter extends CustomPainter {
 
 class _ProgressSection extends StatelessWidget {
   const _ProgressSection({
-    required this.progress,
-    required this.buffered,
-    required this.duration,
+    required this.player,
+    required this.enabled,
   });
-  final double progress;
-  final double buffered;
-  final double duration;
+  final AudioPlayer player;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final border = theme.colorScheme.outline;
 
-    return Column(
-      children: [
-        // buffered + progress bar
-        Container(
-          height: 4,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Stack(
-            children: [
-              // buffered
-              FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: buffered.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              // progress
-              FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: progress.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return StreamBuilder<Duration>(
+      stream: player.positionStream,
+      builder: (context, posSnap) {
+        final position = posSnap.data ?? Duration.zero;
+        final duration = player.duration ?? Duration.zero;
+        final buffered = player.bufferedPosition;
+        final durMs = duration.inMilliseconds.toDouble();
+        final progress = durMs > 0 ? position.inMilliseconds / durMs : 0.0;
+        final bufFrac =
+            durMs > 0 ? buffered.inMilliseconds / durMs : 0.0;
+
+        return Column(
           children: [
-            Text(
-              _fmt(progress * duration),
-              style: theme.textTheme.labelSmall,
-            ),
-            Text(
-              _fmt(duration),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            // buffered + progress bar (tap to seek)
+            GestureDetector(
+              onTapUp: enabled && durMs > 0
+                  ? (details) {
+                      final box = context.findRenderObject()! as RenderBox;
+                      final frac = (details.localPosition.dx /
+                              box.size.width)
+                          .clamp(0.0, 1.0);
+                      player.seek(
+                        Duration(milliseconds: (frac * durMs).round()),
+                      );
+                    }
+                  : null,
+              child: Container(
+                height: 18,
+                color: Colors.transparent,
+                alignment: Alignment.center,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Stack(
+                    children: [
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: bufFrac.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: progress.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: accent,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _fmt(position),
+                  style: theme.textTheme.labelSmall,
+                ),
+                Text(
+                  _fmt(duration),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
-  static String _fmt(double seconds) {
-    final s = seconds.round();
+  static String _fmt(Duration d) {
+    final s = d.inSeconds;
     final m = s ~/ 60;
     final r = s % 60;
     return '$m:${r.toString().padLeft(2, '0')}';
@@ -520,6 +592,7 @@ class _ProgressSection extends StatelessWidget {
 class _ControlsSection extends StatelessWidget {
   const _ControlsSection({
     required this.playing,
+    required this.buffering,
     required this.shuffle,
     required this.repeat,
     required this.volume,
@@ -531,6 +604,7 @@ class _ControlsSection extends StatelessWidget {
     required this.onVolume,
   });
   final bool playing;
+  final bool buffering;
   final bool shuffle;
   final RepeatMode repeat;
   final double volume;
@@ -550,11 +624,23 @@ class _ControlsSection extends StatelessWidget {
       children: [
         // main play button
         Center(
-          child: PlayButton(
-            key: const ValueKey('mainplay'),
-            playing: playing,
-            onTap: onPlay,
-          ),
+          child: buffering
+              ? SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: accent,
+                    ),
+                  ),
+                )
+              : PlayButton(
+                  key: const ValueKey('mainplay'),
+                  playing: playing,
+                  onTap: onPlay,
+                ),
         ),
         const SizedBox(height: 24),
 
@@ -564,7 +650,7 @@ class _ControlsSection extends StatelessWidget {
           children: [
             // shuffle
             _ControlChip(
-              icon: shuffle ? Icons.shuffle : Icons.shuffle,
+              icon: Icons.shuffle,
               active: shuffle,
               activeColor: accent,
               onTap: onShuffle,
@@ -598,20 +684,21 @@ class _ControlsSection extends StatelessWidget {
           height: 48,
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.volume_down,
                 size: 20,
-                color: Colors.white54,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Semantics(
                   label: 'Volume',
                   child: Slider(
-                    value: volume,
+                    value: volume.clamp(0.0, 1.0),
                     onChanged: onVolume,
                     activeColor: accent,
-                    inactiveColor: theme.colorScheme.surfaceContainerHighest,
+                    inactiveColor:
+                        theme.colorScheme.surfaceContainerHighest,
                   ),
                 ),
               ),
@@ -729,7 +816,8 @@ class _ControlChipState extends State<_ControlChip>
           child: Icon(
             widget.icon,
             size: 22,
-            color: widget.active ? accent : theme.colorScheme.onSurfaceVariant,
+            color:
+                widget.active ? accent : theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -778,16 +866,18 @@ class _QueueSection extends StatelessWidget {
     required this.queue,
     required this.index,
     required this.playing,
+    required this.onPlayAt,
   });
   final List<Track> queue;
   final int index;
   final bool playing;
+  final void Function(int) onPlayAt;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final text = theme.colorScheme.onBackground;
+    final text = theme.colorScheme.onSurface;
     final muted = theme.colorScheme.onSurfaceVariant;
 
     return Column(
@@ -817,18 +907,32 @@ class _QueueSection extends StatelessWidget {
         Expanded(
           child: queue.isEmpty
               ? Center(
-                  child: Text(
-                    'Queue is empty',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 14,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.queue_music,
+                        size: 40,
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withOpacity(0.4),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Search for music to build a queue',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: muted,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(14)),
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
                     itemCount: queue.length,
                     itemBuilder: (context, i) {
                       final track = queue[i];
@@ -836,80 +940,91 @@ class _QueueSection extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Reveal(
-                          delay: 20.0 * i,
+                          delay: (20.0 * (i % 10)).clamp(0.0, 200.0),
                           beginOffset: const Offset(0.0, 0.12),
                           duration: const Duration(milliseconds: 260),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                            decoration: BoxDecoration(
-                              color: isCurrent
-                                  ? accent.withOpacity(0.12)
-                                  : theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: isCurrent
-                                  ? Border.all(color: accent, width: 1.0)
-                                  : Border.all(
-                                      color: theme.colorScheme.outline,
-                                      width: 0.5,
+                          child: GestureDetector(
+                            onTap: () => onPlayAt(i),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: isCurrent
+                                    ? accent.withOpacity(0.12)
+                                    : theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: isCurrent
+                                    ? Border.all(color: accent, width: 1.0)
+                                    : Border.all(
+                                        color: theme.colorScheme.outline,
+                                        width: 0.5,
+                                      ),
+                              ),
+                              child: Row(
+                                children: [
+                                  if (isCurrent && playing)
+                                    IgnorePointer(
+                                      child: Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: accent,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  accent.withOpacity(0.6),
+                                              blurRadius: 6,
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                            ),
-                            child: Row(
-                              children: [
-                                if (isCurrent && playing)
-                                  IgnorePointer(
-                                    child: Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: accent,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: accent.withOpacity(0.6),
-                                            blurRadius: 6,
-                                            spreadRadius: 1,
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          track.title,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: isCurrent
+                                                ? accent
+                                                : text,
                                           ),
-                                        ],
-                                      ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          track.artist,
+                                          style:
+                                              theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                            color: muted,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        track.title,
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: text,
+                                  if (isCurrent && playing)
+                                    IgnorePointer(
+                                      child: CustomPaint(
+                                        size: const Size(24, 16),
+                                        painter: _MiniEqualizer(
+                                          progress: 1.0,
+                                          color: accent,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        track.artist,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: muted,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isCurrent && playing)
-                                  IgnorePointer(
-                                    child: CustomPaint(
-                                      size: const Size(24, 16),
-                                      painter: _MiniEqualizer(
-                                        progress: 1.0,
-                                        color: accent,
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -950,33 +1065,3 @@ class _MiniEqualizer extends CustomPainter {
 }
 
 enum RepeatMode { off, all, one }
-
-final List<Track> _demoQueue = [
-  Track(
-    id: 'd1',
-    title: 'Long Summer Night',
-    artist: 'Manatsume Demo',
-    duration: 214,
-    artwork: null,
-    source: 'Demo',
-    license: 'Demo',
-  ),
-  Track(
-    id: 'd2',
-    title: 'Paper Fox',
-    artist: 'Manatsume Demo',
-    duration: 188,
-    artwork: null,
-    source: 'Demo',
-    license: 'Demo',
-  ),
-  Track(
-    id: 'd3',
-    title: 'Static Lullaby',
-    artist: 'Manatsume Demo',
-    duration: 243,
-    artwork: null,
-    source: 'Demo',
-    license: 'Demo',
-  ),
-];

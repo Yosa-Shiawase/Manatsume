@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:manatsume/ui/motion.dart';
 import '../../services/service_locator.dart';
-import 'package:manatsume/features/player/play_button.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({
+    super.key,
+    this.onStart,
+    this.onSearch,
+  });
+  final VoidCallback? onStart;
+  final VoidCallback? onSearch;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -16,7 +21,6 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final text = theme.colorScheme.onBackground;
-    final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
       body: SafeArea(
@@ -130,12 +134,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _actionRow() {
-    final theme = Theme.of(context);
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: widget.onStart,
             icon: const Icon(Icons.play_arrow, size: 20),
             label: const Text('Start listening'),
           ),
@@ -143,7 +146,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: widget.onSearch,
             icon: const Icon(Icons.search, size: 20),
             label: const Text('Search music'),
           ),
@@ -155,7 +158,9 @@ class _HomePageState extends State<HomePage> {
   Widget _previewCard() {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    return Container(
+    return GestureDetector(
+      onTap: widget.onStart,
+      child: Container(
       height: 280,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -247,31 +252,46 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Long Summer Night',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            'via YouTube',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: accent,
-                            ),
-                          ),
-                        ],
+                      child: ListenableBuilder(
+                        listenable: ServiceLocator.music,
+                        builder: (context, _) {
+                          final track = ServiceLocator.music.currentTrack;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                track?.title ?? 'Long Summer Night',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                track?.artist ?? 'via YouTube',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: accent,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -332,7 +352,8 @@ class _HomePageState extends State<HomePage> {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       shrinkWrap: true,
-      childAspectRatio: 1.1,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 0.78,
       children: items,
     );
   }
@@ -403,14 +424,18 @@ class _FeatureCard extends StatelessWidget {
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
             body,
             style: theme.textTheme.bodySmall?.copyWith(
-              height: 1.4,
+              height: 1.35,
               color: theme.colorScheme.onSurfaceVariant,
             ),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

@@ -4,6 +4,14 @@ import '../services/like_service.dart';
 import '../services/music_service.dart';
 import '../services/playlist_service.dart';
 
+// Re-export the service types so pages importing ServiceLocator can also
+// reference MusicService and friends in their own signatures.
+export '../services/settings_service.dart';
+export '../services/library_service.dart';
+export '../services/like_service.dart';
+export '../services/music_service.dart';
+export '../services/playlist_service.dart';
+
 class ServiceLocator {
   static final MusicService music = MusicService();
   static final PlaylistService playlists = PlaylistService();

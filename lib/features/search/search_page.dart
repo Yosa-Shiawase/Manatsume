@@ -1,10 +1,8 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:manatsume/core/services.dart';
 import 'package:manatsume/models/models.dart';
 import 'package:manatsume/ui/motion.dart';
-import 'package:manatsume/features/player/play_button.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -18,6 +16,15 @@ class _SearchPageState extends State<SearchPage> {
   final _focusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    // Rebuild whenever the text changes so the Search button enables itself.
+    _queryController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _queryController.dispose();
     _focusNode.dispose();
@@ -26,129 +33,140 @@ class _SearchPageState extends State<SearchPage> {
 
   void _runSearch() {
     HapticFeedback.lightImpact();
+    FocusManager.instance.primaryFocus?.unfocus();
     ServiceLocator.music.search(_queryController.text);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Reveal(
-                beginOffset: const Offset(0.0, 0.12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Search',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+    // Rebuild the whole page whenever MusicService notifies: searching spinners,
+    // errors, results and per-tile play state all live on the service.
+    return ListenableBuilder(
+      listenable: ServiceLocator.music,
+      builder: (context, _) => Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              // header
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Reveal(
+                  beginOffset: const Offset(0.0, 0.12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Search',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Search music through the extractor pipeline.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 6),
+                      Text(
+                        'Search music through the extractor pipeline.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // query input
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Reveal(
-                delay: 80,
-                beginOffset: const Offset(0.0, 0.1),
-                child: SizedBox(
-                  height: 56,
-                  child: TextField(
-                    controller: _queryController,
-                    focusNode: _focusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Song, artist, album…',
-                      prefixIcon: const Icon(Icons.search, size: 22),
-                      suffixIcon: _queryController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close, size: 20),
-                              onPressed: () {
-                                _queryController.clear();          ServiceLocator.music.search('');
-          _focusNode.unfocus();
-                              },
-                            )
-                          : null,
-                    ),
-                    onSubmitted: (_) => _runSearch(),
-                    onChanged: (_) {
-                      // live search is intentionally not triggered on every
-                      // keystroke to keep the extractor usage intentional.
-                    },
+                    ],
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 12),
-
-            // action row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Reveal(
-                delay: 120,
-                beginOffset: const Offset(0.0, 0.1),
-                child: Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _queryController.text.isEmpty
-                          ? null
-                          : _runSearch,
-                      icon:                      ServiceLocator.music.searching
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.search, size: 18),
-                      label: Text(
-                        ServiceLocator.music.searching ? 'Searching…' : 'Search',
+              // query input
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Reveal(
+                  delay: 80,
+                  beginOffset: const Offset(0.0, 0.1),
+                  child: SizedBox(
+                    height: 56,
+                    child: TextField(
+                      controller: _queryController,
+                      focusNode: _focusNode,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Song, artist, album…',
+                        prefixIcon: const Icon(Icons.search, size: 22),
+                        suffixIcon: _queryController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                onPressed: () {
+                                  _queryController.clear();
+                                  ServiceLocator.music.search('');
+                                  _focusNode.unfocus();
+                                },
+                              )
+                            : null,
                       ),
+                      onSubmitted: (_) => _runSearch(),
+                      onChanged: (_) {
+                        // Live search is intentionally not triggered on every
+                        // keystroke; the listener above only repaints buttons.
+                      },
                     ),
-                    const SizedBox(width: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => _focusNode.requestFocus(),
-                      icon: const Icon(Icons.tune, size: 18),
-                      label: const Text('Filter'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 6),
+              const SizedBox(height: 12),
 
-            // status
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _StatusView(),
-            ),
+              // action row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Reveal(
+                  delay: 120,
+                  beginOffset: const Offset(0.0, 0.1),
+                  child: Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _queryController.text.trim().isEmpty
+                            ? null
+                            : _runSearch,
+                        icon: ServiceLocator.music.searching
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.search, size: 18),
+                        label: Text(
+                          ServiceLocator.music.searching
+                              ? 'Searching…'
+                              : 'Search',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => _focusNode.requestFocus(),
+                        icon: const Icon(Icons.tune, size: 18),
+                        label: const Text('Filter'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-            const Divider(height: 1),
+              const SizedBox(height: 6),
 
-            // results
-            Expanded(
-              child: _ResultsView(),
-            ),
-          ],
+              // status
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _StatusView(music: ServiceLocator.music),
+              ),
+
+              const Divider(height: 1),
+
+              // results
+              Expanded(
+                child: _ResultsView(music: ServiceLocator.music),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -156,57 +174,56 @@ class _SearchPageState extends State<SearchPage> {
 }
 
 class _StatusView extends StatelessWidget {
+  const _StatusView({required this.music});
+  final MusicService music;
+
   @override
   Widget build(BuildContext context) {
-    final music = ServiceLocator.music;
+    final theme = Theme.of(context);
     if (music.searching) {
-      return const SizedBox(
-        height: 20,
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  'Searching…',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+      return SizedBox(
+        height: 24,
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-          ),
+            const SizedBox(width: 10),
+            Text(
+              'Searching…',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       );
     }
     if (music.error != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
+            color: theme.colorScheme.errorContainer.withOpacity(0.45),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.shade200, width: 0.5),
+            border: Border.all(
+              color: theme.colorScheme.error.withOpacity(0.4),
+              width: 0.5,
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber, size: 20, color: Colors.red),
+              Icon(Icons.warning_amber,
+                  size: 20, color: theme.colorScheme.error),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   music.error!,
-                  style: TextStyle(
-                    color: Colors.red.shade900,
-                    fontSize: 14,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
                   ),
                 ),
               ),
@@ -220,17 +237,16 @@ class _StatusView extends StatelessWidget {
 }
 
 class _ResultsView extends StatelessWidget {
+  const _ResultsView({required this.music});
+  final MusicService music;
+
   @override
   Widget build(BuildContext context) {
-    final music = ServiceLocator.music;
-    final tracks = <Track>[];
+    final theme = Theme.of(context);
+    final tracks = music.results;
+    final hasResults = tracks.isNotEmpty;
 
-    // For this educational build we expose a simple public query; in a real
-    // app this would come from the service. Here we model the search results
-    // that the service returns after a search call.
-    final hasResults = music.hasSearched && tracks.isNotEmpty;
-
-    if (!music.hasSearched) {
+    if (!music.hasSearched && !music.searching) {
       return Center(
         child: Reveal(
           beginOffset: const Offset(0.0, 0.12),
@@ -240,23 +256,21 @@ class _ResultsView extends StatelessWidget {
               Icon(
                 Icons.search,
                 size: 56,
-                color: Colors.white24,
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
               ),
               const SizedBox(height: 12),
               Text(
                 'Search to find music',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white54,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Results come from the extractor pipeline.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white30,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
                 ),
               ),
             ],
@@ -265,26 +279,17 @@ class _ResultsView extends StatelessWidget {
       );
     }
 
-    if (music.searching) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: CircularProgressIndicator(strokeWidth: 2),
+    if (music.searching && tracks.isEmpty) {
+      return ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: [
+          for (var i = 0; i < 6; i++)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Skeleton(height: 72, borderRadius: 14),
             ),
-            SizedBox(height: 12),
-            Text(
-              'Searching…',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white54,
-              ),
-            ),
-          ],
-        ),
+        ],
       );
     }
 
@@ -298,23 +303,21 @@ class _ResultsView extends StatelessWidget {
               Icon(
                 Icons.music_off,
                 size: 56,
-                color: Colors.white24,
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
               ),
               const SizedBox(height: 12),
               Text(
                 'No results',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white54,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Try a different query.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white30,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
                 ),
               ),
             ],
@@ -323,32 +326,36 @@ class _ResultsView extends StatelessWidget {
       );
     }
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: tracks.length,
-        itemBuilder: (context, index) {
-          final track = tracks[index];
-          final playing = false;
-          final current = false;
-          return Reveal(
-            delay: 40.0 * index,
-            beginOffset: const Offset(0.0, 0.14),
-            duration: const Duration(milliseconds: 360),
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: tracks.length,
+      itemBuilder: (context, index) {
+        final track = tracks[index];
+        final isCurrent = music.currentTrack?.id == track.id;
+        final playing = isCurrent && music.playing;
+        final delay = (40.0 * (index % 10)).clamp(0.0, 360.0);
+        return Reveal(
+          delay: delay,
+          beginOffset: const Offset(0.0, 0.14),
+          duration: const Duration(milliseconds: 360),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: _SearchResultTile(
               track: track,
               playing: playing,
-              current: current,
+              current: isCurrent,
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _SearchResultTile extends StatefulWidget {
+class _SearchResultTile extends StatelessWidget {
   const _SearchResultTile({
     required this.track,
     required this.playing,
@@ -358,26 +365,13 @@ class _SearchResultTile extends StatefulWidget {
   final bool playing;
   final bool current;
 
-  @override
-  State<_SearchResultTile> createState() => _SearchResultTileState();
-}
-
-class _SearchResultTileState extends State<_SearchResultTile> {
-  bool _liked = false;
-
-  void _togglePlay() {
+  void _togglePlay(MusicService music) {
     HapticFeedback.mediumImpact();
-    final music = ServiceLocator.music;
-    if (widget.current && music.currentTrack?.id == widget.track.id) {
+    if (current) {
       music.togglePlay();
     } else {
-      music.play(widget.track);
+      music.play(track);
     }
-  }
-
-  void _toggleLike() {
-    HapticFeedback.mediumImpact();
-    setState(() => _liked = !_liked);
   }
 
   @override
@@ -388,20 +382,24 @@ class _SearchResultTileState extends State<_SearchResultTile> {
     final border = theme.colorScheme.outline;
     final text = theme.colorScheme.onSurface;
     final muted = theme.colorScheme.onSurfaceVariant;
+    final music = ServiceLocator.music;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _togglePlay,
+        onTap: () => _togglePlay(music),
         splashColor: accent.withOpacity(0.12),
         highlightColor: accent.withOpacity(0.06),
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: surface,
+            color: current ? accent.withOpacity(0.10) : surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border, width: 0.5),
+            border: Border.all(
+              color: current ? accent.withOpacity(0.6) : border,
+              width: current ? 1.0 : 0.5,
+            ),
           ),
           child: Row(
             children: [
@@ -411,7 +409,14 @@ class _SearchResultTileState extends State<_SearchResultTile> {
                 child: SizedBox(
                   width: 52,
                   height: 52,
-                  child: _artFallback(theme),
+                  child: track.artwork != null && track.artwork!.isNotEmpty
+                      ? AsyncImage(
+                          url: track.artwork!,
+                          width: 52,
+                          height: 52,
+                          radius: 10,
+                        )
+                      : _artFallback(theme),
                 ),
               ),
               const SizedBox(width: 12),
@@ -421,17 +426,17 @@ class _SearchResultTileState extends State<_SearchResultTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.track.title,
+                      track.title,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: text,
+                        color: current ? accent : text,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.track.artist,
+                      track.artist,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: muted,
                       ),
@@ -441,17 +446,17 @@ class _SearchResultTileState extends State<_SearchResultTile> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        if (widget.track.duration > 0)
+                        if (track.duration > 0)
                           Text(
-                            _fmt(widget.track.duration),
+                            _fmt(track.duration),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: muted,
                             ),
                           ),
                         const Spacer(),
-                        if (widget.track.source != null)
+                        if (track.source != null)
                           Text(
-                            widget.track.source!,
+                            track.source!,
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: accent,
                             ),
@@ -462,40 +467,59 @@ class _SearchResultTileState extends State<_SearchResultTile> {
                 ),
               ),
               const SizedBox(width: 8),
-              // like
-              GestureDetector(
-                onTap: _toggleLike,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _liked
-                        ? accent.withOpacity(0.15)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _liked ? Icons.favorite : Icons.favorite_border,
-                    color: _liked ? accent : muted,
-                    size: 20,
-                  ),
-                ),
+              // like (persisted through LikeService)
+              ListenableBuilder(
+                listenable: ServiceLocator.likes,
+                builder: (context, _) {
+                  final liked = ServiceLocator.likes.isLiked(track.id);
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      ServiceLocator.likes.toggle(track.id);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: liked
+                            ? accent.withOpacity(0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        liked ? Icons.favorite : Icons.favorite_border,
+                        color: liked ? accent : muted,
+                        size: 20,
+                      ),
+                    ),
+                  );
+                },
               ),
               // play affordance
               GestureDetector(
-                onTap: _togglePlay,
+                onTap: () => _togglePlay(music),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   transitionBuilder: (child, anim) {
                     return ScaleTransition(scale: anim, child: child);
                   },
-                  child: Icon(
-                    widget.current ? Icons.pause : Icons.play_arrow,
-                    key: ValueKey(widget.current),
-                    color: accent,
-                    size: widget.current ? 26 : 22,
-                  ),
+                  child: music.buffering && current
+                      ? SizedBox(
+                          key: const ValueKey('buffer'),
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: accent,
+                          ),
+                        )
+                      : Icon(
+                          playing ? Icons.pause : Icons.play_arrow,
+                          key: ValueKey(playing),
+                          color: accent,
+                          size: playing ? 26 : 22,
+                        ),
                 ),
               ),
             ],
@@ -526,214 +550,4 @@ class _SearchResultTileState extends State<_SearchResultTile> {
     final s = seconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
   }
-}
-
-// Play Button widget (reused from player feature)
-class PlayButton extends StatelessWidget {
-  const PlayButton({
-    super.key,
-    required this.playing,
-    required this.onTap,
-    this.label,
-    this.showLabel = false,
-  });
-  final bool playing;
-  final VoidCallback onTap;
-  final String? label;
-  final bool showLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final bg = theme.colorScheme.onPrimary;
-
-    return GestureDetector(
-      onTapDown: (_) => HapticFeedback.mediumImpact(),
-      onTapUp: (_) {
-        HapticFeedback.mediumImpact();
-        onTap();
-      },
-      onTapCancel: () {},
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [accent, accent.withOpacity(0.85)],
-            stops: const [0.0, 1.0],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withOpacity(0.5),
-              blurRadius: 16,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (playing)
-              IgnorePointer(
-                child: CustomPaint(
-                  size: const Size(80, 80),
-                  painter: GlowRingPainter(
-                    progress: 1.0,
-                    color: accent,
-                  ),
-                ),
-              ),
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: CustomPaint(
-                size: const Size(40, 40),
-                painter: _PlayIconPainter(
-                  progress: 0.0,
-                  playing: playing,
-                  color: bg,
-                ),
-              ),
-            ),
-            if (playing)
-              IgnorePointer(
-                child: CustomPaint(
-                  size: const Size(80, 80),
-                  painter: ShinePainter(
-                    progress: 1.0,
-                    angle: 0.0,
-                    color: accent,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Re-export or define the painters used above.
-class GlowRingPainter extends CustomPainter {
-  GlowRingPainter({required this.progress, required this.color});
-  final double progress;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0.0) return;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final radius = size.width * 0.42;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..shader = RadialGradient(
-        colors: [
-          color.withOpacity(0.8),
-          color.withOpacity(0.0),
-        ],
-        stops: const [0.0, 1.0],
-      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: radius));
-    canvas.drawCircle(Offset(cx, cy), radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant GlowRingPainter other) =>
-      other.progress != progress;
-}
-
-class _PlayIconPainter extends CustomPainter {
-  _PlayIconPainter({
-    required this.progress,
-    required this.playing,
-    required this.color,
-  });
-  final double progress;
-  final bool playing;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    if (playing) {
-      final w = size.width * 0.32;
-      final h = size.height * 0.5;
-      final gap = size.width * 0.28;
-      final cx = size.width / 2;
-      final cy = size.height / 2;
-      canvas.drawRect(
-        Rect.fromLTWH(cx - gap / 2 - w, cy - h / 2, w, h),
-        paint,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(cx + gap / 2, cy - h / 2, w, h),
-        paint,
-      );
-    } else {
-      final cx = size.width / 2;
-      final cy = size.height / 2;
-      final s = 0.5 * (0.9 + 0.1 * (1 - progress));
-      final path = Path()
-        ..moveTo(cx - 4 * s, cy - 8 * s)
-        ..lineTo(cx - 4 * s, cy + 8 * s)
-        ..lineTo(cx + 12 * s, cy)
-        ..close();
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PlayIconPainter other) =>
-      other.progress != progress || other.playing != playing;
-}
-
-class ShinePainter extends CustomPainter {
-  ShinePainter({
-    required this.progress,
-    required this.angle,
-    required this.color,
-  });
-  final double progress;
-  final double angle;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0.0) return;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final radius = size.width * 0.5;
-    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          color.withOpacity(0.5 * progress),
-          color.withOpacity(0.0),
-        ],
-        stops: const [0.0, 1.0],
-        center: Alignment(-0.6 + angle, -0.6 + angle),
-        focal: Alignment(-0.6 + angle, -0.6 + angle),
-        focalRadius: 2.0,
-      ).createShader(rect);
-    canvas.drawCircle(Offset(cx, cy), radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant ShinePainter other) =>
-      other.progress != progress || other.angle != angle;
 }
