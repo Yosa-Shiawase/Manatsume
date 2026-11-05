@@ -23,7 +23,11 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
-  youtube_explode_dart: ^2.4.0
+  # Vendored, hardened copy of youtube_explode_dart 2.5.3 (upstream 2.x
+  # crashes on "Streamed N units ago" search results and 3.x is broken; see
+  # third_party/youtube_explode_dart — patched toDateTime + tryParse guards).
+  youtube_explode_dart:
+    path: third_party/youtube_explode_dart
   just_audio: ^0.9.40
   just_audio_background: ^0.0.1-beta.13
   path_provider: ^2.1.2

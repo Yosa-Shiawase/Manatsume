@@ -2,6 +2,8 @@ analyzer:
   exclude:
     - build/**
     - android/**
+    # Vendored third-party code keeps its own style; don't lint it.
+    - third_party/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

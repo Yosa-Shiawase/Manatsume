@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SettingsService {
+/// Persisted app settings.
+///
+/// Extends [ChangeNotifier]: the app root listens to this service so a
+/// theme change on the Settings page re-themes the whole app instantly.
+class SettingsService extends ChangeNotifier {
   SettingsService();
 
   SharedPreferences? _prefs;
@@ -29,6 +33,8 @@ class SettingsService {
       ThemeMode.dark => 'dark',
       _ => 'system',
     });
+    // Tell listeners (the app root) so the new theme applies immediately.
+    notifyListeners();
   }
 
   Future<void> setSeenIntro(bool seen) async {

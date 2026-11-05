@@ -12,30 +12,6 @@ import 'package:manatsume/features/player/player_page.dart';
 import 'package:manatsume/features/settings/settings_page.dart';
 import 'package:manatsume/features/about/about_page.dart';
 
-class ThemeModeController extends ChangeNotifier {
-  ThemeModeController({required this.service});
-  final SettingsService service;
-  ThemeMode _mode = ThemeMode.system;
-
-  ThemeMode get mode => _mode;
-
-  Future<void> init() async {
-    _mode = service.readTheme();
-    notifyListeners();
-  }
-
-  Future<void> set(ThemeMode value) async {
-    _mode = value;
-    await service.setTheme(_mode);
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-}
-
 class ManatsumeApp extends StatefulWidget {
   const ManatsumeApp({super.key, required this.settings});
   final SettingsService settings;
@@ -44,9 +20,7 @@ class ManatsumeApp extends StatefulWidget {
   State<ManatsumeApp> createState() => _ManatsumeAppState();
 }
 
-class _ManatsumeAppState extends State<ManatsumeApp>
-    with SingleTickerProviderStateMixin {
-  late final ThemeModeController themeController;
+class _ManatsumeAppState extends State<ManatsumeApp> {
   late final PlaylistService playlists;
   late final LikeService likes;
   late final LibraryService library;
@@ -54,8 +28,6 @@ class _ManatsumeAppState extends State<ManatsumeApp>
   @override
   void initState() {
     super.initState();
-    themeController = ThemeModeController(service: widget.settings);
-    themeController.init(); // restore persisted theme choice, if any
     playlists = PlaylistService();
     likes = LikeService();
     library = LibraryService();
@@ -63,7 +35,6 @@ class _ManatsumeAppState extends State<ManatsumeApp>
 
   @override
   void dispose() {
-    themeController.dispose();
     playlists.dispose();
     likes.dispose();
     library.dispose();
@@ -72,26 +43,25 @@ class _ManatsumeAppState extends State<ManatsumeApp>
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Manatsume',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeController.mode,
-      theme: ManatsumeTheme.light,
-      darkTheme: ManatsumeTheme.dark,
-      home: ManatsumeShell(
-        themeController: themeController,
+    // Listen to the settings service so a theme change made on the
+    // Settings page rebuilds the MaterialApp (and thus re-themes the
+    // whole app) immediately, not just after an app restart.
+    return ListenableBuilder(
+      listenable: widget.settings,
+      builder: (context, _) => MaterialApp(
+        title: 'Manatsume',
+        debugShowCheckedModeBanner: false,
+        themeMode: widget.settings.readTheme(),
+        theme: ManatsumeTheme.light,
+        darkTheme: ManatsumeTheme.dark,
+        home: const ManatsumeShell(),
       ),
     );
   }
 }
 
 class ManatsumeShell extends StatefulWidget {
-  const ManatsumeShell({
-    super.key,
-    required this.themeController,
-  });
-
-  final ThemeModeController themeController;
+  const ManatsumeShell({super.key});
 
   @override
   State<ManatsumeShell> createState() => _ManatsumeShellState();

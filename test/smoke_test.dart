@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manatsume/app.dart';
 import 'package:manatsume/services/settings_service.dart';
@@ -22,5 +23,18 @@ void main() {
     await music.togglePlay(); // must not throw with no track
     await music.search('');   // empty query clears state, no network
     expect(music.hasSearched, isFalse);
+  });
+
+  test('settings service notifies theme listeners on setTheme', () async {
+    // Regression: the Settings page persists via setTheme; the app root
+    // listens to this service to re-theme MaterialApp immediately.
+    final settings = SettingsService();
+    await settings.init();
+    var notifications = 0;
+    settings.addListener(() => notifications++);
+    await settings.setTheme(ThemeMode.light);
+    await settings.setTheme(ThemeMode.dark);
+    expect(notifications, 2);
+    expect(settings.readTheme(), ThemeMode.dark);
   });
 }
